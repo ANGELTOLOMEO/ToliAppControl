@@ -1,12 +1,13 @@
-import { Component, inject, input, output, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 import { AuthService } from '../core/auth/auth.service';
 
 /**
@@ -16,153 +17,224 @@ import { AuthService } from '../core/auth/auth.service';
 @Component({
   selector: 'app-header',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    RouterLink,
     MatToolbarModule,
     MatButtonModule,
     MatIconModule,
     MatBadgeModule,
     MatMenuModule,
     MatDividerModule,
+    MatDatepickerModule,
+    MatNativeDateModule
   ],
   template: `
-    <mat-toolbar class="header-toolbar">
-      <!-- Botón toggle sidebar (mobile) -->
-      <button mat-icon-button class="menu-toggle" (click)="toggleSidenav()">
-        <mat-icon>menu</mat-icon>
-      </button>
+    <div class="header-shell">
+      <mat-toolbar class="header-toolbar">
+        <button mat-icon-button class="menu-toggle" (click)="toggleSidenav()">
+          <mat-icon>menu</mat-icon>
+        </button>
 
-      <!-- Espaciador -->
-      <span class="spacer"></span>
-
-      <!-- Notificaciones -->
-      <button
-        mat-icon-button
-        class="notification-btn"
-        [matMenuTriggerFor]="notificationMenu"
-        [matBadge]="unreadCount()"
-        [matBadgeHidden]="unreadCount() === 0"
-        matBadgeColor="warn"
-        matBadgeSize="small"
-      >
-        <mat-icon>notifications</mat-icon>
-      </button>
-
-      <mat-menu #notificationMenu="matMenu" class="notification-menu">
-        <div class="notification-header">
-          <span>Notificaciones</span>
-          @if (unreadCount() > 0) {
-            <button mat-button color="primary" (click)="markAllRead()">Markar todo leído</button>
-          }
+        <div class="brand">
+          <img class="brand-logo" src="/toli-logo.png" alt="Toli" />
         </div>
-        <mat-divider></mat-divider>
-        @if (notifications().length === 0) {
-          <div class="no-notifications">
-            <mat-icon>notifications_none</mat-icon>
-            <span>Sin notificaciones</span>
-          </div>
-        } @else {
-          @for (notif of notifications().slice(0, 5); track notif.id) {
-            <button mat-menu-item class="notification-item" [class.unread]="!notif.leida">
-              <mat-icon [class.unread-icon]="!notif.leida">
-                {{ notif.leida ? 'notifications' : 'fiber_manual_record' }}
-              </mat-icon>
-              <div class="notification-content">
-                <span class="notification-message">{{ notif.contenido }}</span>
-                <span class="notification-time">{{ formatTime(notif.creado_en) }}</span>
-              </div>
-            </button>
-          }
-        }
-      </mat-menu>
 
-      <!-- Usuario -->
-      <button mat-button class="user-button" [matMenuTriggerFor]="userMenu">
-        <mat-icon class="user-avatar">account_circle</mat-icon>
-        <span class="user-name">{{ userName() }}</span>
-        <mat-icon>expand_more</mat-icon>
-      </button>
+        <span class="spacer"></span>
 
-      <mat-menu #userMenu="matMenu">
-        <div class="user-menu-header">
-          <mat-icon class="user-avatar-large">account_circle</mat-icon>
-          <div class="user-info">
-            <span class="user-name-full">{{ userName() }}</span>
-            <span class="user-email">{{ userEmail() }}</span>
-            <span class="user-role">{{ userRole() }}</span>
-          </div>
+        <div class="top-actions">
+          <button mat-icon-button class="top-action" aria-label="Tema" (click)="toggleTheme()">
+            <mat-icon>{{ themeDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>
+          </button>
+          <button mat-icon-button class="top-action" aria-label="Paleta" (click)="showConfigurator.set(!showConfigurator())">
+            <mat-icon>palette</mat-icon>
+          </button>
+          <button
+            #calTrigger="matMenuTrigger"
+            mat-icon-button
+            class="top-action"
+            aria-label="Calendario"
+            [matMenuTriggerFor]="calendarMenu"
+          >
+            <mat-icon>calendar_today</mat-icon>
+          </button>
         </div>
-        <mat-divider></mat-divider>
-        <button mat-menu-item (click)="onProfile()">
+
+        <button
+          mat-icon-button
+          class="notification-btn"
+          [matMenuTriggerFor]="notificationMenu"
+          [matBadge]="unreadCount()"
+          [matBadgeHidden]="unreadCount() === 0"
+          matBadgeColor="warn"
+          matBadgeSize="small"
+        >
+          <mat-icon>notifications</mat-icon>
+        </button>
+
+        <mat-menu #notificationMenu="matMenu" class="notification-menu">
+          <div class="notification-header">
+            <span>Notificaciones</span>
+            @if (unreadCount() > 0) {
+              <button mat-button color="primary" (click)="markAllRead()">Markar todo leído</button>
+            }
+          </div>
+          <mat-divider></mat-divider>
+          @if (notifications().length === 0) {
+            <div class="no-notifications">
+              <mat-icon>notifications_none</mat-icon>
+              <span>Sin notificaciones</span>
+            </div>
+          } @else {
+            @for (notif of notifications().slice(0, 5); track notif.id) {
+              <button mat-menu-item class="notification-item" [class.unread]="!notif.leida">
+                <mat-icon [class.unread-icon]="!notif.leida">
+                  {{ notif.leida ? 'notifications' : 'fiber_manual_record' }}
+                </mat-icon>
+                <div class="notification-content">
+                  <span class="notification-message">{{ notif.contenido }}</span>
+                  <span class="notification-time">{{ formatTime(notif.creado_en) }}</span>
+                </div>
+              </button>
+            }
+          }
+        </mat-menu>
+
+        <button mat-icon-button class="top-action" aria-label="Usuario" [matMenuTriggerFor]="userMenu">
           <mat-icon>person</mat-icon>
-          <span>Perfil</span>
         </button>
-        <button mat-menu-item (click)="onSettings()">
-          <mat-icon>settings</mat-icon>
-          <span>Configuración</span>
-        </button>
-        <mat-divider></mat-divider>
-        <button mat-menu-item (click)="onLogout()" class="logout-item">
-          <mat-icon>logout</mat-icon>
-          <span>Cerrar Sesión</span>
-        </button>
-      </mat-menu>
-    </mat-toolbar>
+
+        <mat-menu #userMenu="matMenu">
+          <div class="user-menu-header">
+            <mat-icon class="user-avatar-large">account_circle</mat-icon>
+            <div class="user-info">
+              <span class="user-name-full">{{ userName() }}</span>
+              <span class="user-email">{{ userEmail() }}</span>
+              <span class="user-role">{{ userRole() }}</span>
+            </div>
+          </div>
+          <mat-divider></mat-divider>
+          <button mat-menu-item (click)="onProfile()">
+            <mat-icon>person</mat-icon>
+            <span>Perfil</span>
+          </button>
+          <button mat-menu-item (click)="onSettings()">
+            <mat-icon>settings</mat-icon>
+            <span>Configuración</span>
+          </button>
+          <mat-divider></mat-divider>
+          <button mat-menu-item (click)="onLogout()" class="logout-item">
+            <mat-icon>logout</mat-icon>
+            <span>Cerrar Sesión</span>
+          </button>
+        </mat-menu>
+      </mat-toolbar>
+
+      @if (showConfigurator()) {
+        <div class="sakai-panel" role="dialog" aria-label="Configuración">
+          <div class="panel-section">
+            <div class="panel-label">Primario</div>
+            <div class="swatches">
+              @for (c of primaryColors; track c) {
+                <button class="swatch" type="button" [class.active]="primaryColor() === c" [style.background]="c" (click)="setPrimary(c)"></button>
+              }
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-label">Superficie</div>
+            <div class="swatches">
+              @for (s of surfaceColors; track s) {
+                <button class="swatch" type="button" [class.active]="surfaceColor() === s" [style.background]="s" (click)="setSurface(s)"></button>
+              }
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-label">Ajustes predefinidos</div>
+            <div class="preset-tabs">
+              @for (p of presets; track p) {
+                <button class="preset-tab" type="button" [class.active]="preset() === p" (click)="setPresetValue(p)">{{ p }}</button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <mat-menu #calendarMenu="matMenu" class="calendar-menu">
+      <div class="calendar-wrapper">
+        @if (selectedDate()) {
+          <div class="calendar-label">Fecha: {{ selectedDate()!.toLocaleDateString('es-PE') }}</div>
+        }
+        <mat-calendar (selectedChange)="onCalendarSelect($event, calTrigger)"></mat-calendar>
+      </div>
+    </mat-menu>
   `,
   styles: [
     `
+      .header-shell {
+        position: relative;
+        z-index: 20;
+      }
+
       .header-toolbar {
-        background: #1a1a2e;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 0 16px;
+        background: var(--bg-secondary, #ffffff);
+        border-bottom: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+        padding: 0 18px;
         height: 64px;
         display: flex;
         align-items: center;
+        gap: 10px;
       }
 
       .menu-toggle {
-        color: #a1a1aa;
+        color: var(--text-primary, #0f172a);
       }
 
       .menu-toggle:hover {
-        color: #fff;
+        background: rgba(15, 23, 42, 0.06);
       }
 
       .spacer {
         flex: 1 1 auto;
       }
 
-      .notification-btn {
-        color: #a1a1aa;
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding-left: 4px;
+        user-select: none;
+      }
+
+      .brand-logo {
+        height: 40px;
+        width: auto;
+        display: block;
+      }
+
+      .top-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         margin-right: 8px;
       }
 
+      .top-action {
+        color: var(--text-primary, #0f172a);
+      }
+
+      .top-action:hover {
+        background: rgba(15, 23, 42, 0.06);
+      }
+
+      .notification-btn {
+        color: var(--text-primary, #0f172a);
+      }
+
       .notification-btn:hover {
-        color: #fff;
-      }
-
-      .user-button {
-        color: #fff;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 4px 8px 4px 4px;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.05);
-      }
-
-      .user-button:hover {
-        background: rgba(255, 255, 255, 0.1);
-      }
-
-      .user-avatar {
-        color: #71717a;
-      }
-
-      .user-name {
-        font-size: 14px;
-        font-weight: 500;
+        background: rgba(15, 23, 42, 0.06);
       }
 
       /* Notification menu styles */
@@ -172,7 +244,7 @@ import { AuthService } from '../core/auth/auth.service';
         align-items: center;
         padding: 12px 16px;
         font-weight: 600;
-        color: #fff;
+        color: #0f172a;
       }
 
       .no-notifications {
@@ -181,7 +253,7 @@ import { AuthService } from '../core/auth/auth.service';
         align-items: center;
         gap: 8px;
         padding: 24px;
-        color: #52525b;
+        color: var(--text-tertiary, #64748b);
       }
 
       .no-notifications mat-icon {
@@ -200,11 +272,11 @@ import { AuthService } from '../core/auth/auth.service';
       }
 
       .notification-item.unread {
-        background: rgba(99, 102, 241, 0.1);
+        background: color-mix(in srgb, var(--accent-primary, #10b981) 12%, transparent);
       }
 
       .unread-icon {
-        color: #6366f1;
+        color: var(--accent-primary, #10b981);
         font-size: 12px;
         width: 12px;
         height: 12px;
@@ -219,13 +291,13 @@ import { AuthService } from '../core/auth/auth.service';
 
       .notification-message {
         font-size: 13px;
-        color: #e4e4e7;
+        color: var(--text-primary, #0f172a);
         line-height: 1.4;
       }
 
       .notification-time {
         font-size: 11px;
-        color: #71717a;
+        color: var(--text-tertiary, #64748b);
       }
 
       /* User menu styles */
@@ -240,7 +312,7 @@ import { AuthService } from '../core/auth/auth.service';
         font-size: 48px;
         width: 48px;
         height: 48px;
-        color: #71717a;
+        color: var(--text-tertiary, #64748b);
       }
 
       .user-info {
@@ -252,21 +324,109 @@ import { AuthService } from '../core/auth/auth.service';
       .user-name-full {
         font-size: 14px;
         font-weight: 600;
-        color: #fff;
+        color: #0f172a;
       }
 
       .user-email {
         font-size: 12px;
-        color: #a1a1aa;
+        color: var(--text-tertiary, #64748b);
       }
 
       .user-role {
         font-size: 11px;
-        color: #6366f1;
-        background: rgba(99, 102, 241, 0.2);
+        color: var(--accent-primary, #10b981);
+        background: color-mix(in srgb, var(--accent-primary, #10b981) 16%, transparent);
         padding: 2px 8px;
         border-radius: 4px;
         width: fit-content;
+      }
+
+      .sakai-panel {
+        position: fixed;
+        top: 74px;
+        right: 16px;
+        width: 260px;
+        background: var(--bg-secondary, #ffffff);
+        border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+        z-index: 10000;
+      }
+
+      .panel-section {
+        display: grid;
+        gap: 10px;
+        padding: 10px 0;
+        border-top: 1px solid rgba(15, 23, 42, 0.06);
+      }
+
+      .panel-section:first-of-type {
+        border-top: none;
+        padding-top: 0;
+      }
+
+      .panel-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-tertiary, #64748b);
+      }
+
+      .swatches {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .swatch {
+        height: 26px;
+        width: 26px;
+        border-radius: 999px;
+        border: 2px solid rgba(0, 0, 0, 0);
+        cursor: pointer;
+      }
+
+      .swatch.active {
+        border-color: var(--accent-primary, #10b981);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary, #10b981) 12%, transparent);
+      }
+
+      .preset-tabs {
+        display: flex;
+        gap: 6px;
+        padding: 6px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.06);
+        width: fit-content;
+      }
+
+      .preset-tab {
+        height: 32px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--text-tertiary, #64748b);
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .preset-tab.active {
+        background: var(--bg-secondary, #ffffff);
+        color: var(--text-primary, #0f172a);
+        border-color: rgba(15, 23, 42, 0.08);
+        box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+      }
+
+      .calendar-wrapper {
+        padding: 8px;
+      }
+
+      .calendar-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text-tertiary, #64748b);
+        padding: 6px 8px 10px;
       }
 
       .logout-item {
@@ -281,8 +441,7 @@ import { AuthService } from '../core/auth/auth.service';
         .header-toolbar {
           padding: 0 8px;
         }
-
-        .user-name {
+        .top-actions {
           display: none;
         }
       }
@@ -297,6 +456,39 @@ export class HeaderComponent implements OnInit {
 
   // Output para logout
   readonly logout = output<void>();
+
+  readonly themeDark = input(false);
+  readonly primaryColor = input('#10b981');
+  readonly surfaceColor = input('#ffffff');
+  readonly preset = input('Aura');
+
+  readonly themeDarkChange = output<boolean>();
+  readonly primaryColorChange = output<string>();
+  readonly surfaceColorChange = output<string>();
+  readonly presetChange = output<string>();
+
+  readonly showConfigurator = signal(false);
+  readonly selectedDate = signal<Date | null>(null);
+  readonly primaryColors = [
+    '#334155',
+    '#10b981',
+    '#22c55e',
+    '#84cc16',
+    '#f97316',
+    '#f59e0b',
+    '#eab308',
+    '#14b8a6',
+    '#06b6d4',
+    '#0ea5e9',
+    '#3b82f6',
+    '#6366f1',
+    '#8b5cf6',
+    '#a855f7',
+    '#ec4899',
+    '#ef4444'
+  ];
+  readonly surfaceColors = ['#ffffff', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155'];
+  readonly presets = ['Aura', 'Lara', 'Nora'];
 
   // Lista de notificaciones (simulada por ahora)
   private _notifications = [
@@ -370,6 +562,27 @@ export class HeaderComponent implements OnInit {
    */
   onLogout(): void {
     this.logout.emit();
+  }
+
+  toggleTheme(): void {
+    this.themeDarkChange.emit(!this.themeDark());
+  }
+
+  setPrimary(color: string): void {
+    this.primaryColorChange.emit(color);
+  }
+
+  setSurface(color: string): void {
+    this.surfaceColorChange.emit(color);
+  }
+
+  setPresetValue(preset: string): void {
+    this.presetChange.emit(preset);
+  }
+
+  onCalendarSelect(date: Date, trigger?: any): void {
+    this.selectedDate.set(date);
+    if (trigger?.closeMenu) trigger.closeMenu();
   }
 
   /**

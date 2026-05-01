@@ -1,4 +1,4 @@
-import { Component, inject, output, computed, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, output, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatListModule } from '@angular/material/list';
@@ -24,6 +24,7 @@ interface MenuItem {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     RouterLink,
@@ -34,29 +35,44 @@ interface MenuItem {
   ],
   template: `
     <div class="sidebar-container">
-      <!-- Logo -->
-      <div class="logo-section">
-        <div class="logo">
-          <span class="logo-icon">T</span>
-        </div>
-        <span class="logo-text">TOLI</span>
-      </div>
+      <div class="section-title">HOGAR</div>
 
       <!-- Menú -->
       <mat-nav-list class="menu-list">
-        @for (item of visibleMenuItems(); track item.route) {
+        @for (item of homeMenuItems(); track item.route) {
           <a
             mat-list-item
             [routerLink]="item.route"
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
             class="menu-item"
+            (click)="onItemClick()"
           >
             <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
             <span matListItemTitle>{{ item.label }}</span>
           </a>
         }
       </mat-nav-list>
+
+      @if (managementMenuItems().length > 0) {
+        <div class="section-title section-title-secondary">GESTIÓN</div>
+
+        <mat-nav-list class="menu-list menu-list-secondary">
+          @for (item of managementMenuItems(); track item.route) {
+            <a
+              mat-list-item
+              [routerLink]="item.route"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
+              class="menu-item"
+              (click)="onItemClick()"
+            >
+              <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+              <span matListItemTitle>{{ item.label }}</span>
+            </a>
+          }
+        </mat-nav-list>
+      }
 
       <!-- Footer -->
       <div class="sidebar-footer">
@@ -70,79 +86,69 @@ interface MenuItem {
       flex-direction: column;
       height: 100%;
       padding: 0;
+      background: var(--bg-secondary, #ffffff);
+      border-radius: 14px;
+      border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.10);
+      overflow: hidden;
     }
 
-    .logo-section {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 20px 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    .section-title {
+      padding: 18px 16px 8px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: var(--text-tertiary, #64748b);
     }
 
-    .logo {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .logo-icon {
-      font-size: 22px;
-      font-weight: 700;
-      color: white;
-    }
-
-    .logo-text {
-      font-size: 20px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: 1px;
+    .section-title-secondary {
+      padding-top: 8px;
     }
 
     .menu-list {
-      flex: 1;
-      padding: 16px 8px;
+      padding: 8px 8px 10px;
       background: transparent;
+      overflow: auto;
+    }
+
+    .menu-list-secondary {
+      padding-bottom: 16px;
     }
 
     .menu-item {
-      border-radius: 8px;
+      border-radius: 10px;
       margin-bottom: 4px;
-      color: #a1a1aa;
+      color: var(--text-secondary, #475569);
       transition: all 0.2s ease;
     }
 
     .menu-item:hover {
-      background: rgba(99, 102, 241, 0.1);
-      color: #fff;
+      background: rgba(15, 23, 42, 0.04);
+      color: var(--text-primary, #0f172a);
     }
 
     .menu-item.active {
-      background: rgba(99, 102, 241, 0.2);
-      color: #818cf8;
+      background: color-mix(in srgb, var(--accent-primary, #10b981) 14%, transparent);
+      color: var(--text-primary, #0f172a);
     }
 
     .menu-item.active mat-icon {
-      color: #818cf8;
+      color: var(--accent-primary, #10b981);
     }
 
     .menu-item mat-icon {
-      color: #71717a;
+      color: var(--text-tertiary, #64748b);
       margin-right: 12px;
     }
 
     .sidebar-footer {
       padding: 16px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      border-top: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
     }
 
     .version-info {
       font-size: 12px;
-      color: #52525b;
+      color: var(--text-tertiary, #94a3b8);
       text-align: center;
     }
   `]
@@ -155,7 +161,7 @@ export class SidebarComponent implements OnInit {
 
   // Menú completo
   private readonly menuItems: MenuItem[] = [
-    { label: 'Dashboard', icon: 'dashboard', route: '/dashboard', roles: ['ADMIN', 'VENTAS_VENDEDOR', 'VENTAS_SUPERVISOR', 'OPERACIONES_INVENTARIO', 'OPERACIONES_LOGISTICA', 'FINANZAS_CONTABILIDAD', 'CLIENTE'] },
+    { label: 'Panel', icon: 'home', route: '/dashboard', roles: ['ADMIN', 'VENTAS_VENDEDOR', 'VENTAS_SUPERVISOR', 'OPERACIONES_INVENTARIO', 'OPERACIONES_LOGISTICA', 'FINANZAS_CONTABILIDAD', 'CLIENTE'] },
     { label: 'Usuarios', icon: 'people', route: '/usuarios', roles: ['ADMIN'] },
     { label: 'Productos', icon: 'inventory_2', route: '/productos', roles: ['ADMIN', 'VENTAS_VENDEDOR', 'VENTAS_SUPERVISOR', 'OPERACIONES_INVENTARIO', 'FINANZAS_CONTABILIDAD'] },
     { label: 'Pedidos', icon: 'shopping_cart', route: '/pedidos', roles: ['ADMIN', 'VENTAS_VENDEDOR', 'VENTAS_SUPERVISOR', 'OPERACIONES_INVENTARIO', 'OPERACIONES_LOGISTICA', 'FINANZAS_CONTABILIDAD', 'CLIENTE'] },
@@ -193,6 +199,28 @@ export class SidebarComponent implements OnInit {
     return this.menuItems.filter(item =>
       item.roles.some(role => allowedRoles.includes(role))
     );
+  });
+
+  readonly homeMenuItems = computed(() => {
+    const items = this.visibleMenuItems();
+    const homeRoutes = new Set(['/dashboard', '/productos', '/usuarios', '/pedidos', '/notificaciones']);
+    const order: Record<string, number> = {
+      '/dashboard': 1,
+      '/productos': 2,
+      '/usuarios': 3,
+      '/pedidos': 4,
+      '/notificaciones': 5
+    };
+    return items
+      .filter(i => homeRoutes.has(i.route))
+      .slice()
+      .sort((a, b) => (order[a.route] ?? 999) - (order[b.route] ?? 999));
+  });
+
+  readonly managementMenuItems = computed(() => {
+    const items = this.visibleMenuItems();
+    const homeRoutes = new Set(['/dashboard', '/productos', '/usuarios', '/pedidos', '/notificaciones']);
+    return items.filter(i => !homeRoutes.has(i.route));
   });
 
   /**

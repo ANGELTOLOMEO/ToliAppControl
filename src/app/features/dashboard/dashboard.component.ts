@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe, CurrencyPipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -11,6 +11,8 @@ import { UsuariosService } from '../../core/services/usuarios.service';
 import { PedidosService } from '../../core/services/pedidos.service';
 import { ProductosService } from '../../core/services/productos.service';
 import { Pedido } from '../../core/models';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RevenueStreamWidget } from './revenue-stream-widget.component';
 
 /**
  * DashboardComponent - Panel principal del Web Admin TOLI
@@ -25,6 +27,7 @@ import { Pedido } from '../../core/models';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     RouterModule,
@@ -35,7 +38,8 @@ import { Pedido } from '../../core/models';
     MatProgressSpinnerModule,
     MatChipsModule,
     DatePipe,
-    CurrencyPipe
+    CurrencyPipe,
+    RevenueStreamWidget
   ],
   template: `
     <div class="dashboard-container">
@@ -179,6 +183,8 @@ import { Pedido } from '../../core/models';
                 }
               </mat-card-content>
             </mat-card>
+
+            <app-revenue-stream-widget></app-revenue-stream-widget>
           </div>
 
           <!-- Columna derecha: Acciones rápidas -->
@@ -251,6 +257,7 @@ import { Pedido } from '../../core/models';
       padding: 24px;
       max-width: 1400px;
       margin: 0 auto;
+      color: var(--text-primary, #0f172a);
     }
 
     /* Header */
@@ -261,13 +268,14 @@ import { Pedido } from '../../core/models';
     .dashboard-header h1 {
       margin: 0;
       font-size: 28px;
-      font-weight: 500;
-      color: #333;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      letter-spacing: -0.02em;
     }
 
     .subtitle {
       margin: 4px 0 0;
-      color: #666;
+      color: var(--text-secondary, #64748b);
       font-size: 14px;
     }
 
@@ -297,12 +305,14 @@ import { Pedido } from '../../core/models';
 
     .kpi-card {
       border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     .kpi-card:hover {
       transform: translateY(-4px);
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
     }
 
     .kpi-card mat-card-content {
@@ -355,7 +365,7 @@ import { Pedido } from '../../core/models';
 
     .kpi-label {
       font-size: 13px;
-      color: #666;
+      color: #64748b;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
@@ -363,7 +373,7 @@ import { Pedido } from '../../core/models';
     .kpi-value {
       font-size: 28px;
       font-weight: 600;
-      color: #333;
+      color: #0f172a;
     }
 
     /* ============================================
@@ -375,7 +385,7 @@ import { Pedido } from '../../core/models';
       align-items: center;
       justify-content: center;
       padding: 60px;
-      color: #666;
+      color: var(--text-secondary, #64748b);
     }
 
     .loading-container p {
@@ -402,6 +412,9 @@ import { Pedido } from '../../core/models';
        TABLA DE PEDIDOS RECIENTES
        ============================================ */
     .columna-pedidos {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
       min-width: 0; /* Previene overflow en grid */
     }
 
@@ -585,6 +598,7 @@ export class DashboardComponent implements OnInit {
   private readonly usuariosService = inject(UsuariosService);
   private readonly pedidosService = inject(PedidosService);
   private readonly productosService = inject(ProductosService);
+  private readonly destroyRef = inject(DestroyRef);
 
   // ============================================
   // SEÑALES (Signals) - Estado Reactivo
@@ -625,37 +639,37 @@ export class DashboardComponent implements OnInit {
     this.cargando.set(true);
 
     // Cargar usuarios activos
-    this.usuariosService.contarActivos().subscribe({
+    this.usuariosService.contarActivos().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (count) => this.usuariosActivos.set(count),
       error: () => this.usuariosActivos.set(0)
     });
 
     // Cargar pedidos de hoy
-    this.pedidosService.contarPedidosHoy().subscribe({
+    this.pedidosService.contarPedidosHoy().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (count) => this.pedidosHoy.set(count),
       error: () => this.pedidosHoy.set(0)
     });
 
     // Cargar productos activos
-    this.productosService.contarActivos().subscribe({
+    this.productosService.contarActivos().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (count) => this.productosActivos.set(count),
       error: () => this.productosActivos.set(0)
     });
 
     // Cargar ingresos del mes
-    this.pedidosService.getIngresosMes().subscribe({
+    this.pedidosService.getIngresosMes().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (total) => this.ingresosMes.set(total),
       error: () => this.ingresosMes.set(0)
     });
 
     // Cargar pedidos recientes
-    this.pedidosService.getRecientes(10).subscribe({
+    this.pedidosService.getRecientes(10).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (pedidos) => this.pedidosRecientes.set(pedidos),
       error: () => this.pedidosRecientes.set([])
     });
 
     // Cargar pedidos pendientes
-    this.pedidosService.contarPendientes().subscribe({
+    this.pedidosService.contarPendientes().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (count) => this.pedidosPendientes.set(count),
       error: () => this.pedidosPendientes.set(0),
       complete: () => this.cargando.set(false)
