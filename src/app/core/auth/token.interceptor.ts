@@ -1,9 +1,9 @@
 import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpEvent } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable, catchError, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
-const TOKEN_KEY = 'toli_token';
+const AUTH_BYPASS_PATHS = ['/auth/login', '/auth/refresh'];
 
 /**
  * TokenInterceptor - Añade el token JWT a todas las peticiones HTTP
@@ -15,17 +15,27 @@ export const tokenInterceptor: HttpInterceptorFn = (
 ): Observable<HttpEvent<unknown>> => {
   const authService = inject(AuthService);
   const token = authService.getToken();
+  const shouldBypass = AUTH_BYPASS_PATHS.some((path) => req.url.includes(path));
+
+  if (shouldBypass) {
+    return next(req);
+  }
 
   // Si hay token, añadir header Authorization
-  if (token) {
-    const authReq = req.clone({
+  const requestWithAuth = token
+    ? req.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`
       }
-    });
-    return next(authReq);
-  }
+    })
+    : req;
 
-  // Si no hay token, continuar sin modificar
-  return next(req);
+  return next(requestWithAuth).pipe(
+    catchError((error) => {
+      if (error?.status === 401 && token) {
+        authService.logout();
+      }
+      return throwError(() => error);
+    })
+  );
 };

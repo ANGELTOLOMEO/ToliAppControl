@@ -16,6 +16,13 @@ export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = environment.API_URL;
 
+  private extractServerMessage(error: any): string | undefined {
+    const payload = error?.error;
+    if (!payload) return undefined;
+    if (typeof payload === 'string') return payload;
+    return payload.message || payload.error || payload.detail || payload.mensaje;
+  }
+
   /**
    * Realiza una petición GET
    */
@@ -30,7 +37,7 @@ export class ApiService {
     }
 
     return this.http.get<ApiResponse<T>>(`${this.baseUrl}/${endpoint}`, { params: httpParams }).pipe(
-      catchError(this.handleError)
+      catchError((error) => this.handleError(error))
     );
   }
 
@@ -39,7 +46,7 @@ export class ApiService {
    */
   post<T>(endpoint: string, body: unknown): Observable<ApiResponse<T>> {
     return this.http.post<ApiResponse<T>>(`${this.baseUrl}/${endpoint}`, body).pipe(
-      catchError(this.handleError)
+      catchError((error) => this.handleError(error))
     );
   }
 
@@ -48,7 +55,7 @@ export class ApiService {
    */
   put<T>(endpoint: string, body: unknown): Observable<ApiResponse<T>> {
     return this.http.put<ApiResponse<T>>(`${this.baseUrl}/${endpoint}`, body).pipe(
-      catchError(this.handleError)
+      catchError((error) => this.handleError(error))
     );
   }
 
@@ -57,7 +64,7 @@ export class ApiService {
    */
   delete<T>(endpoint: string): Observable<ApiResponse<T>> {
     return this.http.delete<ApiResponse<T>>(`${this.baseUrl}/${endpoint}`).pipe(
-      catchError(this.handleError)
+      catchError((error) => this.handleError(error))
     );
   }
 
@@ -75,15 +82,15 @@ export class ApiService {
       if (error.status === 0) {
         errorMessage = 'No se pudo conectar con el servidor';
       } else if (error.status === 401) {
-        errorMessage = 'No autorizado';
+        errorMessage = this.extractServerMessage(error) || 'No autorizado';
       } else if (error.status === 403) {
-        errorMessage = 'Acceso prohibido';
+        errorMessage = this.extractServerMessage(error) || 'Acceso prohibido';
       } else if (error.status === 404) {
-        errorMessage = 'Recurso no encontrado';
+        errorMessage = this.extractServerMessage(error) || 'Recurso no encontrado';
       } else if (error.status === 500) {
-        errorMessage = 'Error interno del servidor';
+        errorMessage = this.extractServerMessage(error) || 'Error interno del servidor';
       } else {
-        errorMessage = error.error?.message || `Error ${error.status}`;
+        errorMessage = this.extractServerMessage(error) || `Error ${error.status}`;
       }
     }
 

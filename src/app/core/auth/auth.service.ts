@@ -46,9 +46,14 @@ export class AuthService {
    */
   login(email: string, password: string): Observable<LoginResponse> {
     this.initIfBrowser(); // Inicializar antes de login en SSR
+    const normalizedEmail = email?.trim() ?? '';
+    const normalizedPassword = password ?? '';
 
     // El backend devuelve { usuario, token } directamente (sin wrapper data)
-    return this.api.post<LoginResponse>('auth/login', { email, password }).pipe(
+    return this.api.post<LoginResponse>('auth/login', {
+      email: normalizedEmail,
+      password: normalizedPassword,
+    }).pipe(
       map((response: any) => {
         // El backend devuelve { usuario, token } pero el ApiService envuelve en ApiResponse
         // response = { data: { usuario, token } } o { data: undefined, error: ... }
