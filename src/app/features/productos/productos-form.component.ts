@@ -15,7 +15,7 @@ import { MatButtonModule } from '@angular/material/button';
   `,
   styles: [`
     .page-container {
-      padding: 20px;
+      padding: 0;
     }
   `]
 })

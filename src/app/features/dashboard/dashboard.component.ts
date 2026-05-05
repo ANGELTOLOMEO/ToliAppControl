@@ -254,7 +254,7 @@ import { RevenueStreamWidget } from './revenue-stream-widget.component';
        ESTILOS DEL DASHBOARD
        ============================================ */
     .dashboard-container {
-      padding: 24px;
+      padding: 0;
       max-width: 1400px;
       margin: 0 auto;
       color: var(--text-primary, #0f172a);
@@ -304,15 +304,15 @@ import { RevenueStreamWidget } from './revenue-stream-widget.component';
     }
 
     .kpi-card {
-      border-radius: 12px;
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+      border-radius: 16px;
+      border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     .kpi-card:hover {
       transform: translateY(-4px);
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.14);
     }
 
     .kpi-card mat-card-content {
@@ -439,9 +439,9 @@ import { RevenueStreamWidget } from './revenue-stream-widget.component';
     }
 
     .pedidos-table th {
-      background-color: #f5f5f5;
+      background-color: rgba(15, 23, 42, 0.04);
       font-weight: 600;
-      color: #333;
+      color: var(--text-primary, #0f172a);
     }
 
     .pedidos-table td {

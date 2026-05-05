@@ -95,6 +95,6 @@ export class ApiService {
     }
 
     console.error('API Error:', errorMessage, error);
-    throw new Error(errorMessage);
+    return throwError(() => new Error(errorMessage));
   }
 }

@@ -14,7 +14,7 @@ import { MatCardModule } from '@angular/material/card';
   `,
   styles: [`
     .page-container {
-      padding: 20px;
+      padding: 0;
     }
   `]
 })

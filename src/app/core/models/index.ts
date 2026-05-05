@@ -9,12 +9,13 @@ export interface Usuario {
   id: string;
   nombre: string;
   email: string;
-  telefono?: string;
-  dni?: string;
-  ruc?: string;
+  telefono?: string | null;
+  dni?: string | null;
+  ruc?: string | null;
   rol: string;
   activo: boolean;
   creado_en: string;
+  ultimo_login?: string | null;
 }
 
 // ============================================
@@ -27,11 +28,13 @@ export interface Producto {
   precio: number;
   precio_mayor?: number;
   cantidad_minimaMayor?: number;
-  categoria_id: string;
+  categoria_id?: string;
   categoria_nombre?: string;
+  categoria?: string;
   stock?: number;
   sku?: string;
-  activo: boolean;
+  imagen?: string | null;
+  activo?: boolean;
 }
 
 // ============================================

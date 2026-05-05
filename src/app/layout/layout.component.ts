@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ViewChild, computed, inject, OnInit, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ViewChild, computed, effect, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
@@ -39,6 +39,7 @@ import { LayoutService } from './service/layout.service';
     <div class="app-shell" [style.--app-primary]="primaryColor()" [style.--app-surface]="surfaceColor()">
       <app-header
         [sidenav]="sidenav"
+        [pageTitle]="pageTitle()"
         (logout)="onLogout()"
         [themeDark]="isDark()"
         [primaryColor]="primaryColor()"
@@ -93,6 +94,21 @@ export class LayoutComponent implements OnInit, AfterViewInit {
   readonly primaryColor = computed(() => this.layoutService.layoutConfig().primaryColor);
   readonly surfaceColor = computed(() => this.layoutService.layoutConfig().surfaceColor);
   readonly preset = computed(() => this.layoutService.layoutConfig().preset);
+
+  constructor() {
+    effect(() => {
+      const dark = this.isDark();
+      const primary = this.primaryColor();
+      const surface = this.surfaceColor();
+
+      if (typeof document === 'undefined') return;
+
+      const root = document.documentElement;
+      root.classList.toggle('dark', dark);
+      root.style.setProperty('--app-primary', primary);
+      root.style.setProperty('--app-surface', this.coerceSurfaceForMode(surface, dark));
+    });
+  }
 
   ngAfterViewInit(): void {}
 
@@ -171,5 +187,36 @@ export class LayoutComponent implements OnInit, AfterViewInit {
       'notificaciones': 'Notificaciones'
     };
     return titles[path] || 'Dashboard';
+  }
+
+  private coerceSurfaceForMode(value: string, dark: boolean): string {
+    const fallback = dark ? '#0f172a' : '#ffffff';
+    const hex = this.normalizeHexColor(value);
+    if (!hex) return fallback;
+
+    const lum = this.relativeLuminance(hex);
+    if (dark && lum > 0.55) return '#0f172a';
+    if (!dark && lum < 0.25) return '#ffffff';
+    return hex;
+  }
+
+  private normalizeHexColor(value: string): string | null {
+    const v = (value ?? '').trim();
+    if (!v) return null;
+    const m = /^#?([0-9a-fA-F]{6})$/.exec(v);
+    if (!m) return null;
+    return `#${m[1].toLowerCase()}`;
+  }
+
+  private relativeLuminance(hex: string): number {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+    const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    const rl = toLinear(r);
+    const gl = toLinear(g);
+    const bl = toLinear(b);
+    return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
   }
 }

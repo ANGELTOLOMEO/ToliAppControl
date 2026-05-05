@@ -112,7 +112,7 @@ export class AuthService {
    * @returns Token string o null
    */
   getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
+    return this.readStorage(TOKEN_KEY);
   }
 
   /**
@@ -120,7 +120,7 @@ export class AuthService {
    * @param token - Token JWT a guardar
    */
   saveToken(token: string): void {
-    localStorage.setItem(TOKEN_KEY, token);
+    this.writeStorage(TOKEN_KEY, token);
     this._isLoggedIn.set(true);
   }
 
@@ -128,7 +128,7 @@ export class AuthService {
    * Limpia el token del localStorage
    */
   clearToken(): void {
-    localStorage.removeItem(TOKEN_KEY);
+    this.removeStorage(TOKEN_KEY);
   }
 
   /**
@@ -136,7 +136,7 @@ export class AuthService {
    * @param usuario - Usuario a guardar
    */
   private saveUser(usuario: Usuario): void {
-    localStorage.setItem(USER_KEY, JSON.stringify(usuario));
+    this.writeStorage(USER_KEY, JSON.stringify(usuario));
   }
 
   /**
@@ -144,7 +144,7 @@ export class AuthService {
    * @returns Usuario o null
    */
   private getStoredUserFromLS(): Usuario | null {
-    const stored = localStorage.getItem(USER_KEY);
+    const stored = this.readStorage(USER_KEY);
     if (stored) {
       try {
         return JSON.parse(stored);
@@ -163,7 +163,30 @@ export class AuthService {
    * Limpia el usuario del localStorage
    */
   private clearUser(): void {
-    localStorage.removeItem(USER_KEY);
+    this.removeStorage(USER_KEY);
+  }
+
+  private readStorage(key: string): string | null {
+    try {
+      if (!isPlatformBrowser(this.platformId)) return null;
+      return window.localStorage?.getItem(key) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeStorage(key: string, value: string): void {
+    try {
+      if (!isPlatformBrowser(this.platformId)) return;
+      window.localStorage?.setItem(key, value);
+    } catch {}
+  }
+
+  private removeStorage(key: string): void {
+    try {
+      if (!isPlatformBrowser(this.platformId)) return;
+      window.localStorage?.removeItem(key);
+    } catch {}
   }
 
   /**

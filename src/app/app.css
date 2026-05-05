@@ -2,21 +2,315 @@
 @import '../styles/theme.scss';
 
 /* Global Styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body {
   height: 100%;
   margin: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
-  background-color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --sidebar-width: 250px;
+  --header-height: 64px;
+  --bg-primary: #f8fafc;
+  --bg-secondary: var(--app-surface, #ffffff);
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --accent-primary: var(--app-primary, #10b981);
+  --accent-secondary: color-mix(in srgb, var(--accent-primary) 70%, white);
+  --border-color: rgba(15, 23, 42, 0.08);
+  --hover-bg: rgba(16, 185, 129, 0.08);
+}
+
+:root.dark {
+  --bg-primary: #0b1220;
+  --bg-secondary: var(--app-surface, #0f172a);
+  --bg-tertiary: #111827;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #a1a1aa;
+  --border-color: rgba(148, 163, 184, 0.20);
+  --hover-bg: rgba(148, 163, 184, 0.12);
+}
+
+body {
+  background: var(--bg-primary, #f8fafc);
+  color: var(--text-primary, #0f172a);
+}
+
+/* Base text color by theme */
+:root,
+:root.light {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+:root.dark .card-container,
+:root.dark .card,
+:root.dark .p-component,
+:root.dark .p-datatable,
+:root.dark .p-dialog,
+:root.dark .mat-mdc-card,
+:root.dark .mat-mdc-table,
+:root.dark .mat-mdc-cell,
+:root.dark .mat-mdc-header-cell {
+  color: var(--text-primary, #f8fafc);
+}
+
+:root:not(.dark) .card-container,
+:root:not(.dark) .card,
+:root:not(.dark) .p-component,
+:root:not(.dark) .p-datatable,
+:root:not(.dark) .p-dialog,
+:root:not(.dark) .mat-mdc-card,
+:root:not(.dark) .mat-mdc-table,
+:root:not(.dark) .mat-mdc-cell,
+:root:not(.dark) .mat-mdc-header-cell {
+  color: var(--text-primary, #0f172a);
 }
 
 .page-container {
-  padding: 24px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .card-container {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--bg-secondary, #ffffff);
+  border-radius: 16px;
+  border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+  padding: 22px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.card {
+  background: var(--bg-secondary, #ffffff);
+  border-radius: 16px;
+  border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+a {
+  color: color-mix(in srgb, var(--accent-primary, #10b981) 85%, #1d4ed8);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #0f172a);
+}
+
+p {
+  color: var(--text-secondary, #475569);
+}
+
+/* Angular Material: cards / tables */
+.mat-mdc-card {
+  border-radius: 16px !important;
+  border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08) !important;
+}
+
+app-layout.dark .mat-mdc-card {
+  background: rgba(17, 24, 39, 0.72);
+  border-color: rgba(148, 163, 184, 0.20);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.42) !important;
+}
+
+.mat-mdc-table {
+  background: transparent;
+}
+
+.mat-mdc-header-row {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+app-layout.dark .mat-mdc-header-row {
+  background: rgba(148, 163, 184, 0.10);
+}
+
+.mat-mdc-row:hover {
+  background: rgba(16, 185, 129, 0.06);
+}
+
+app-layout.dark .mat-mdc-row:hover {
+  background: rgba(148, 163, 184, 0.10);
+}
+
+/* PrimeNG: datatable */
+.p-datatable {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.p-datatable .p-datatable-header {
+  background: transparent;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+app-layout.dark .p-datatable .p-datatable-thead > tr > th {
+  background: rgba(148, 163, 184, 0.10);
+  border-color: rgba(148, 163, 184, 0.20);
+}
+
+.p-datatable .p-datatable-tbody > tr:hover {
+  background: rgba(16, 185, 129, 0.06);
+}
+
+app-layout.dark .p-datatable .p-datatable-tbody > tr:hover {
+  background: rgba(148, 163, 184, 0.10);
+}
+
+:root.dark .cdk-overlay-container .mat-mdc-menu-panel,
+:root.dark .cdk-overlay-container .mat-datepicker-content,
+:root.dark .cdk-overlay-container .mat-mdc-select-panel {
+  background: rgba(17, 24, 39, 0.92);
+  color: var(--text-primary, #f8fafc);
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.20));
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.42);
+}
+
+:root.dark .cdk-overlay-container .mat-mdc-menu-item .mdc-list-item__primary-text,
+:root.dark .cdk-overlay-container .mat-mdc-menu-item .mat-icon,
+:root.dark .cdk-overlay-container .mat-mdc-option .mdc-list-item__primary-text,
+:root.dark .cdk-overlay-container .mat-mdc-option .mat-icon {
+  color: var(--text-primary, #f8fafc);
+}
+
+:root.dark .cdk-overlay-container .mat-mdc-menu-item:hover,
+:root.dark .cdk-overlay-container .mat-mdc-option:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+:root.dark .cdk-overlay-container .mat-divider {
+  border-top-color: rgba(148, 163, 184, 0.22);
+}
+
+:root.dark .p-toolbar {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.20);
+}
+
+:root.dark .p-inputtext {
+  background: rgba(15, 23, 42, 0.28);
+  border-color: rgba(148, 163, 184, 0.24);
+  color: var(--text-primary, #f8fafc);
+}
+
+:root.dark .p-inputnumber-input,
+:root.dark .p-select-label,
+:root.dark .p-select-option,
+:root.dark .p-dialog-title,
+:root.dark .p-toolbar,
+:root.dark .p-tag,
+:root.dark .p-button,
+:root.dark .p-button .p-button-label,
+:root.dark .p-paginator,
+:root.dark .p-paginator .p-paginator-page,
+:root.dark .p-paginator .p-paginator-current,
+:root.dark .p-checkbox,
+:root.dark .p-radiobutton {
+  color: var(--text-primary, #f8fafc) !important;
+}
+
+:root.dark .p-inputtext::placeholder {
+  color: rgba(226, 232, 240, 0.55);
+}
+
+:root.dark .p-datatable {
+  background: rgba(15, 23, 42, 0.22);
+  border: 1px solid rgba(148, 163, 184, 0.20);
+}
+
+:root.dark .p-datatable .p-datatable-tbody > tr > td {
+  background: transparent;
+  color: var(--text-primary, #f8fafc);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+:root.dark .p-datatable .p-datatable-thead > tr > th {
+  color: rgba(226, 232, 240, 0.78);
+}
+
+:root.dark .p-datatable-wrapper,
+:root.dark .p-datatable-table {
+  background: transparent !important;
+}
+
+:root.dark .p-datatable .p-datatable-tbody > tr {
+  background: transparent !important;
+}
+
+:root.dark .p-datatable .p-datatable-tbody > tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.14) !important;
+}
+
+:root.dark .p-datatable .p-datatable-tbody > tr:nth-child(odd) {
+  background: rgba(15, 23, 42, 0.08) !important;
+}
+
+:root.dark .p-datatable .p-datatable-tbody > tr > td {
+  color: var(--text-primary, #f8fafc) !important;
+}
+
+:root.dark .p-datatable .p-datatable-tbody > tr.p-datatable-row-selected {
+  background: color-mix(in srgb, var(--accent-primary, #10b981) 16%, rgba(15, 23, 42, 0.12)) !important;
+}
+
+:root.dark .p-datatable .p-datatable-tbody > tr:hover {
+  background: rgba(148, 163, 184, 0.14) !important;
+}
+
+:root.dark .cdk-overlay-container .mat-calendar {
+  color: var(--text-primary, #f8fafc);
+}
+
+:root.dark .cdk-overlay-container .mat-calendar-body-label,
+:root.dark .cdk-overlay-container .mat-calendar-table-header th,
+:root.dark .cdk-overlay-container .mat-calendar-period-button,
+:root.dark .cdk-overlay-container .mat-calendar-previous-button,
+:root.dark .cdk-overlay-container .mat-calendar-next-button {
+  color: var(--text-primary, #f8fafc) !important;
+}
+
+:root.dark .cdk-overlay-container .mat-calendar-body-cell-content {
+  color: var(--text-primary, #f8fafc) !important;
+}
+
+:root.dark .cdk-overlay-container .mat-calendar-body-disabled > .mat-calendar-body-cell-content {
+  color: rgba(226, 232, 240, 0.35) !important;
+}
+
+:root.dark .cdk-overlay-container .mat-calendar-body-selected {
+  background-color: color-mix(in srgb, var(--accent-primary, #10b981) 35%, transparent) !important;
+  color: var(--text-primary, #f8fafc) !important;
+}
+
+:root.dark .cdk-overlay-container .mat-calendar-body-today:not(.mat-calendar-body-selected)
+  > .mat-calendar-body-cell-content {
+  border-color: rgba(226, 232, 240, 0.65) !important;
 }

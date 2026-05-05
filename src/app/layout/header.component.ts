@@ -38,39 +38,53 @@ import { AuthService } from '../core/auth/auth.service';
 
         <div class="brand">
           <img class="brand-logo" src="/toli-logo.png" alt="Toli" />
+          <div class="brand-copy">
+            <div class="page-title">{{ pageTitle() }}</div>
+            <div class="page-subtitle">{{ welcomeMessage() }}</div>
+          </div>
         </div>
 
         <span class="spacer"></span>
 
-        <div class="top-actions">
-          <button mat-icon-button class="top-action" aria-label="Tema" (click)="toggleTheme()">
-            <mat-icon>{{ themeDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>
-          </button>
-          <button mat-icon-button class="top-action" aria-label="Paleta" (click)="showConfigurator.set(!showConfigurator())">
-            <mat-icon>palette</mat-icon>
-          </button>
-          <button
-            #calTrigger="matMenuTrigger"
-            mat-icon-button
-            class="top-action"
-            aria-label="Calendario"
-            [matMenuTriggerFor]="calendarMenu"
-          >
-            <mat-icon>calendar_today</mat-icon>
-          </button>
-        </div>
+        <div class="right-actions">
+          <div class="action-group top-actions">
+            <button mat-icon-button class="top-action" aria-label="Tema" (click)="toggleTheme()">
+              <mat-icon>{{ themeDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>
+            </button>
+            <button mat-icon-button class="top-action" aria-label="Paleta" (click)="showConfigurator.set(!showConfigurator())">
+              <mat-icon>palette</mat-icon>
+            </button>
+            <button
+              #calTrigger="matMenuTrigger"
+              mat-icon-button
+              class="top-action"
+              aria-label="Calendario"
+              [matMenuTriggerFor]="calendarMenu"
+            >
+              <mat-icon>calendar_today</mat-icon>
+            </button>
+          </div>
 
-        <button
-          mat-icon-button
-          class="notification-btn"
-          [matMenuTriggerFor]="notificationMenu"
-          [matBadge]="unreadCount()"
-          [matBadgeHidden]="unreadCount() === 0"
-          matBadgeColor="warn"
-          matBadgeSize="small"
-        >
-          <mat-icon>notifications</mat-icon>
-        </button>
+          <div class="action-divider" aria-hidden="true"></div>
+
+          <div class="action-group">
+            <button
+              mat-icon-button
+              class="notification-btn"
+              [matMenuTriggerFor]="notificationMenu"
+              [matBadge]="unreadCount()"
+              [matBadgeHidden]="unreadCount() === 0"
+              matBadgeColor="warn"
+              matBadgeSize="small"
+            >
+              <mat-icon>notifications</mat-icon>
+            </button>
+
+            <button mat-icon-button class="top-action" aria-label="Usuario" [matMenuTriggerFor]="userMenu">
+              <mat-icon>person</mat-icon>
+            </button>
+          </div>
+        </div>
 
         <mat-menu #notificationMenu="matMenu" class="notification-menu">
           <div class="notification-header">
@@ -99,10 +113,6 @@ import { AuthService } from '../core/auth/auth.service';
             }
           }
         </mat-menu>
-
-        <button mat-icon-button class="top-action" aria-label="Usuario" [matMenuTriggerFor]="userMenu">
-          <mat-icon>person</mat-icon>
-        </button>
 
         <mat-menu #userMenu="matMenu">
           <div class="user-menu-header">
@@ -179,13 +189,17 @@ import { AuthService } from '../core/auth/auth.service';
       }
 
       .header-toolbar {
-        background: var(--bg-secondary, #ffffff);
+        background:
+          radial-gradient(1100px 180px at 10% 0%, rgba(16, 185, 129, 0.10), transparent 55%),
+          radial-gradient(900px 180px at 100% 0%, rgba(59, 130, 246, 0.08), transparent 55%),
+          color-mix(in srgb, var(--bg-secondary, #ffffff) 92%, transparent);
         border-bottom: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
         padding: 0 18px;
         height: 64px;
         display: flex;
         align-items: center;
         gap: 10px;
+        backdrop-filter: blur(12px);
       }
 
       .menu-toggle {
@@ -208,17 +222,66 @@ import { AuthService } from '../core/auth/auth.service';
         user-select: none;
       }
 
+      .brand-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+      }
+
+      .page-title {
+        font-size: 0.98rem;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        color: var(--text-primary, #0f172a);
+        line-height: 1.1;
+      }
+
+      .page-subtitle {
+        font-size: 0.75rem;
+        color: var(--text-tertiary, #64748b);
+        line-height: 1.1;
+      }
+
       .brand-logo {
         height: 40px;
         width: auto;
         display: block;
       }
 
-      .top-actions {
+      .right-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .action-group {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        margin-right: 8px;
+        padding: 4px;
+        border-radius: 14px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: rgba(255, 255, 255, 0.65);
+      }
+
+      :host-context(.dark) .action-group {
+        border-color: rgba(148, 163, 184, 0.20);
+        background: rgba(15, 23, 42, 0.24);
+      }
+
+      .action-divider {
+        width: 1px;
+        height: 26px;
+        background: rgba(15, 23, 42, 0.12);
+      }
+
+      :host-context(.dark) .action-divider {
+        background: rgba(148, 163, 184, 0.22);
+      }
+
+      .top-actions {
+        margin-right: 0;
       }
 
       .top-action {
@@ -227,6 +290,13 @@ import { AuthService } from '../core/auth/auth.service';
 
       .top-action:hover {
         background: rgba(15, 23, 42, 0.06);
+      }
+
+      .top-action:focus-visible,
+      .notification-btn:focus-visible,
+      .menu-toggle:focus-visible {
+        outline: 2px solid color-mix(in srgb, var(--accent-primary, #10b981) 65%, transparent);
+        outline-offset: 2px;
       }
 
       .notification-btn {
@@ -244,7 +314,7 @@ import { AuthService } from '../core/auth/auth.service';
         align-items: center;
         padding: 12px 16px;
         font-weight: 600;
-        color: #0f172a;
+        color: var(--text-primary, #0f172a);
       }
 
       .no-notifications {
@@ -324,7 +394,7 @@ import { AuthService } from '../core/auth/auth.service';
       .user-name-full {
         font-size: 14px;
         font-weight: 600;
-        color: #0f172a;
+        color: var(--text-primary, #0f172a);
       }
 
       .user-email {
@@ -441,6 +511,9 @@ import { AuthService } from '../core/auth/auth.service';
         .header-toolbar {
           padding: 0 8px;
         }
+        .brand-copy {
+          display: none;
+        }
         .top-actions {
           display: none;
         }
@@ -453,6 +526,7 @@ export class HeaderComponent implements OnInit {
 
   // Input para el sidenav
   readonly sidenav = input<any>();
+  readonly pageTitle = input('Dashboard');
 
   // Output para logout
   readonly logout = output<void>();
@@ -516,6 +590,10 @@ export class HeaderComponent implements OnInit {
   readonly userName = () => this.authService.getUser()?.nombre || 'Usuario';
   readonly userEmail = () => this.authService.getUser()?.email || '';
   readonly userRole = () => this.formatRole(this.authService.getUser()?.rol || '');
+  readonly welcomeMessage = () => {
+    const firstName = (this.authService.getUser()?.nombre || '').trim().split(' ')[0];
+    return firstName ? `Hola, ${firstName}` : 'Bienvenido';
+  };
 
   // Notificaciones
   readonly notifications = () => this._notifications;
