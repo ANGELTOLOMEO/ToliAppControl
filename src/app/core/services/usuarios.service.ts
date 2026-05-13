@@ -101,6 +101,10 @@ export class UsuariosService {
     );
   }
 
+  post(payload: Partial<Usuario> & { password?: string }): Observable<Usuario | null> {
+    return this.create(payload);
+  }
+
   update(id: string, payload: Partial<Usuario> & { password?: string }): Observable<Usuario | null> {
     return this.api.put<any>(`admin/usuarios/${id}`, this.buildUsuarioPayload(payload)).pipe(
       map((response: any) => {
@@ -113,5 +117,9 @@ export class UsuariosService {
 
   delete(id: string): Observable<boolean> {
     return this.api.delete<unknown>(`admin/usuarios/${id}`).pipe(map(() => true));
+  }
+
+  deleteUsuario(id: string): Observable<boolean> {
+    return this.delete(id);
   }
 }
