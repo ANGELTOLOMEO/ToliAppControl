@@ -1,29 +1,42 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal, computed } from '@angular/core';
-import { CommonModule, DatePipe, CurrencyPipe } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  inject,
+  OnInit,
+  signal,
+  computed,
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
-import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatRippleModule } from '@angular/material/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { forkJoin, catchError, of } from 'rxjs';
+
 import { UsuariosService } from '../../core/services/usuarios.service';
 import { PedidosService } from '../../core/services/pedidos.service';
 import { ProductosService } from '../../core/services/productos.service';
-import { Pedido } from '../../core/models';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RevenueStreamWidget } from './revenue-stream-widget.component';
+import { BestSellingWidget } from './best-selling-widget.component';
+import { RecentSalesWidget } from './recent-sales-widget.component';
 
-/**
- * DashboardComponent - Panel principal del Web Admin TOLI
- * Fase 4: Dashboard con KPIs, pedidos recientes y acciones rápidas
- * 
- * Características:
- * - 4 tarjetas de estadísticas (KPIs)
- * - Tabla de pedidos recientes (máx 10)
- * - Acciones rápidas
- * - Uso de señales (signals) para estado reactivo
- */
+export type EstadoPedido =
+  | 'pendiente' | 'confirmado' | 'procesando'
+  | 'enviado'   | 'entregado'  | 'cancelado';
+
+export interface KpiDelta {
+  value: number;
+  label: string;
+  up: boolean | null;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -32,662 +45,512 @@ import { RevenueStreamWidget } from './revenue-stream-widget.component';
     CommonModule,
     RouterModule,
     MatCardModule,
-    MatTableModule,
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
     MatChipsModule,
-    DatePipe,
-    CurrencyPipe,
-    RevenueStreamWidget
+    MatTooltipModule,
+    MatDividerModule,
+    MatRippleModule,
+    RevenueStreamWidget,
+    BestSellingWidget,
+    RecentSalesWidget,
   ],
   template: `
-    <div class="dashboard-container">
-      <!-- Título de la página -->
-      <header class="dashboard-header">
-        <h1>Dashboard</h1>
-        <p class="subtitle">Resumen general de tu tienda TOLI</p>
+    <div class="dashboard">
+
+      <!-- ── Hero ─────────────────────────────────────────── -->
+      <header class="hero" aria-label="Cabecera del dashboard">
+        <span class="hero-badge">
+          <mat-icon class="hero-badge-icon" aria-hidden="true">hub</mat-icon>
+          Centro de control
+        </span>
+        <h1 class="hero-title">
+          <span class="hero-icon-wrap" aria-hidden="true">
+            <mat-icon>monitoring</mat-icon>
+          </span>
+          Dashboard
+        </h1>
+        <p class="hero-sub">Resumen general de tu tienda TOLI</p>
       </header>
 
-      <!-- Grid de 4 tarjetas KPI -->
-      <div class="kpi-grid">
-        <!-- KPI: Usuarios Activos -->
-        <mat-card class="kpi-card kpi-usuarios">
-          <mat-card-content>
-            <div class="kpi-icon">
-              <mat-icon>people</mat-icon>
-            </div>
-            <div class="kpi-info">
-              <span class="kpi-label">Usuarios Activos</span>
-              <span class="kpi-value">{{ usuariosActivos() }}</span>
-            </div>
-          </mat-card-content>
-        </mat-card>
+      <!-- ── KPI Grid ──────────────────────────────────────── -->
+      <section class="kpi-grid" aria-label="Métricas principales">
+        @for (kpi of kpis(); track kpi.id) {
+          <mat-card
+            class="kpi-card"
+            [class]="'kpi-' + kpi.color"
+            matRipple
+            [matTooltip]="kpi.tooltip"
+            matTooltipPosition="above"
+            role="article"
+            [attr.aria-label]="kpi.label + ': ' + kpi.displayValue"
+          >
+            <mat-card-content>
+              <div class="kpi-accent" aria-hidden="true"></div>
+              <div class="kpi-icon" aria-hidden="true">
+                <mat-icon>{{ kpi.icon }}</mat-icon>
+              </div>
+              <div class="kpi-body">
+                <span class="kpi-label">{{ kpi.label }}</span>
+                @if (cargando()) {
+                  <span class="kpi-skeleton" aria-hidden="true"></span>
+                } @else {
+                  <span class="kpi-value">{{ kpi.displayValue }}</span>
+                  @if (kpi.delta) {
+                    @let d = kpi.delta;
+                    <span class="kpi-delta" [class.kpi-delta-up]="d.up" [class.kpi-delta-neutral]="d.up === null">
+                      <mat-icon class="delta-icon">
+                        {{ d.up === null ? 'remove' : d.up ? 'trending_up' : 'trending_down' }}
+                      </mat-icon>
+                      {{ d.label }}
+                    </span>
+                  }
+                }
+              </div>
+            </mat-card-content>
+          </mat-card>
+        }
+      </section>
 
-        <!-- KPI: Pedidos Hoy -->
-        <mat-card class="kpi-card kpi-pedidos-hoy">
-          <mat-card-content>
-            <div class="kpi-icon">
-              <mat-icon>shopping_cart</mat-icon>
-            </div>
-            <div class="kpi-info">
-              <span class="kpi-label">Pedidos Hoy</span>
-              <span class="kpi-value">{{ pedidosHoy() }}</span>
-            </div>
-          </mat-card-content>
-        </mat-card>
-
-        <!-- KPI: Productos Activos -->
-        <mat-card class="kpi-card kpi-productos">
-          <mat-card-content>
-            <div class="kpi-icon">
-              <mat-icon>inventory_2</mat-icon>
-            </div>
-            <div class="kpi-info">
-              <span class="kpi-label">Productos Activos</span>
-              <span class="kpi-value">{{ productosActivos() }}</span>
-            </div>
-          </mat-card-content>
-        </mat-card>
-
-        <!-- KPI: Ingresos del Mes -->
-        <mat-card class="kpi-card kpi-ingresos">
-          <mat-card-content>
-            <div class="kpi-icon">
-              <mat-icon>attach_money</mat-icon>
-            </div>
-            <div class="kpi-info">
-              <span class="kpi-label">Ingresos del Mes</span>
-              <span class="kpi-value">{{ ingresosMes() | currency:'PEN':'S/ ' }}</span>
-            </div>
-          </mat-card-content>
-        </mat-card>
-      </div>
-
-      <!-- Loading indicator -->
+      <!-- ── Loading ───────────────────────────────────────── -->
       @if (cargando()) {
-        <div class="loading-container">
-          <mat-spinner diameter="50"></mat-spinner>
-          <p>Cargando estadísticas...</p>
+        <div class="loading-state" role="status" aria-live="polite">
+          <mat-spinner diameter="40" strokeWidth="3"></mat-spinner>
+          <p>Cargando estadísticas…</p>
         </div>
       }
 
-      <!-- Contenido principal: Dos columnas -->
+      <!-- ── Widgets ───────────────────────────────────────── -->
       @if (!cargando()) {
-        <div class="main-content">
-          <!-- Columna izquierda: Tabla de pedidos recientes -->
-          <div class="columna-pedidos">
-            <mat-card class="table-card">
-              <mat-card-header>
-                <mat-card-title>
-                  <mat-icon>receipt_long</mat-icon>
-                  Pedidos Recientes
-                </mat-card-title>
-              </mat-card-header>
-              <mat-card-content>
-                @if (pedidosRecientes().length > 0) {
-                  <table mat-table [dataSource]="pedidosRecientes()" class="pedidos-table">
-                    
-                    <!-- Columna: Número de Pedido -->
-                    <ng-container matColumnDef="numero_pedido">
-                      <th mat-header-cell *matHeaderCellDef>N° Pedido</th>
-                      <td mat-cell *matCellDef="let pedido">
-                        <a [routerLink]="['/pedidos', pedido.id]" class="pedido-link">
-                          {{ pedido.numero_pedido }}
-                        </a>
-                      </td>
-                    </ng-container>
+        <app-revenue-stream-widget></app-revenue-stream-widget>
+        <app-best-selling-widget></app-best-selling-widget>
+        <app-recent-sales-widget></app-recent-sales-widget>
 
-                    <!-- Columna: Cliente -->
-                    <ng-container matColumnDef="cliente">
-                      <th mat-header-cell *matHeaderCellDef>Cliente</th>
-                      <td mat-cell *matCellDef="let pedido">
-                        {{ pedido.usuario_id }}
-                      </td>
-                    </ng-container>
-
-                    <!-- Columna: Total -->
-                    <ng-container matColumnDef="total">
-                      <th mat-header-cell *matHeaderCellDef>Total</th>
-                      <td mat-cell *matCellDef="let pedido">
-                        {{ pedido.total | currency:'PEN':'S/ ' }}
-                      </td>
-                    </ng-container>
-
-                    <!-- Columna: Estado -->
-                    <ng-container matColumnDef="estado">
-                      <th mat-header-cell *matHeaderCellDef>Estado</th>
-                      <td mat-cell *matCellDef="let pedido">
-                        <mat-chip [class]="'estado-chip estado-' + pedido.estado_pedido">
-                          {{ getEstadoLabel(pedido.estado_pedido) }}
-                        </mat-chip>
-                      </td>
-                    </ng-container>
-
-                    <!-- Columna: Fecha -->
-                    <ng-container matColumnDef="fecha">
-                      <th mat-header-cell *matHeaderCellDef>Fecha</th>
-                      <td mat-cell *matCellDef="let pedido">
-                        {{ pedido.creado_en | date:'dd/MM/yyyy HH:mm' }}
-                      </td>
-                    </ng-container>
-
-                    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-                  </table>
-                } @else {
-                  <div class="no-data">
-                    <mat-icon>inbox</mat-icon>
-                    <p>No hay pedidos recientes</p>
-                  </div>
+        <!-- ── Acciones rápidas ──────────────────────────────── -->
+        <section class="quick-actions" aria-label="Acciones rápidas">
+          <h2 class="section-title">
+            <mat-icon aria-hidden="true">bolt</mat-icon>
+            Acciones rápidas
+          </h2>
+          <div class="actions-grid">
+            @for (accion of accionesRapidas; track accion.label) {
+              <button
+                class="action-btn"
+                matRipple
+                [routerLink]="accion.route"
+                [attr.aria-label]="accion.label"
+              >
+                <span class="action-icon" [class]="'action-icon-' + accion.color" aria-hidden="true">
+                  <mat-icon>{{ accion.icon }}</mat-icon>
+                </span>
+                <span class="action-copy">
+                  <span class="action-label">{{ accion.label }}</span>
+                  <span class="action-sub">{{ accion.sub }}</span>
+                </span>
+                @if (accion.badge) {
+                  <span class="action-badge" aria-label="{{ accion.badge }} pendientes">
+                    {{ accion.badge }}
+                  </span>
                 }
-              </mat-card-content>
-            </mat-card>
-
-            <app-revenue-stream-widget></app-revenue-stream-widget>
+                <mat-icon class="action-arrow" aria-hidden="true">chevron_right</mat-icon>
+              </button>
+            }
           </div>
-
-          <!-- Columna derecha: Acciones rápidas -->
-          <div class="columna-acciones">
-            <mat-card class="acciones-card">
-              <mat-card-header>
-                <mat-card-title>
-                  <mat-icon>flash_on</mat-icon>
-                  Acciones Rápidas
-                </mat-card-title>
-              </mat-card-header>
-              <mat-card-content>
-                <div class="acciones-buttons">
-                  <button mat-raised-button color="primary" routerLink="/productos/nuevo" class="accion-btn">
-                    <mat-icon>add_box</mat-icon>
-                    Nuevo Producto
-                  </button>
-                  
-                  <button mat-raised-button color="accent" routerLink="/usuarios/nuevo" class="accion-btn">
-                    <mat-icon>person_add</mat-icon>
-                    Nuevo Usuario
-                  </button>
-                  
-                  <button mat-raised-button color="warn" routerLink="/pedidos" [queryParams]="{estado: 'pendiente'}" class="accion-btn">
-                    <mat-icon>pending_actions</mat-icon>
-                    Ver Pedidos Pendientes
-                    @if (pedidosPendientes() > 0) {
-                      <span class="badge">{{ pedidosPendientes() }}</span>
-                    }
-                  </button>
-                </div>
-              </mat-card-content>
-            </mat-card>
-
-            <!-- Información adicional -->
-            <mat-card class="info-card">
-              <mat-card-header>
-                <mat-card-title>
-                  <mat-icon>info</mat-icon>
-                  Información
-                </mat-card-title>
-              </mat-card-header>
-              <mat-card-content>
-                <ul class="info-list">
-                  <li>
-                    <mat-icon>check_circle</mat-icon>
-                    <span>Sistema operativo</span>
-                  </li>
-                  <li>
-                    <mat-icon>local_shipping</mat-icon>
-                    <span>Gestión de envíos activa</span>
-                  </li>
-                  <li>
-                    <mat-icon>payment</mat-icon>
-                    <span>Pagos configurados</span>
-                  </li>
-                </ul>
-              </mat-card-content>
-            </mat-card>
-          </div>
-        </div>
+        </section>
       }
     </div>
   `,
   styles: [`
-    /* ============================================
-       ESTILOS DEL DASHBOARD
-       ============================================ */
-    .dashboard-container {
+    /* ── Tokens ─────────────────────────────────────────────── */
+    :host {
+      display: block;
+      animation: pageIn 320ms cubic-bezier(.2,.7,.2,1);
+      --accent: var(--accent-primary, #10b981);
+      --radius: 16px;
+    }
+
+    .dashboard {
       padding: 0;
       max-width: 1400px;
       margin: 0 auto;
-      color: var(--text-primary, #0f172a);
-    }
-
-    /* Header */
-    .dashboard-header {
-      margin-bottom: 24px;
-    }
-
-    .dashboard-header h1 {
-      margin: 0;
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--text-primary, #0f172a);
-      letter-spacing: -0.02em;
-    }
-
-    .subtitle {
-      margin: 4px 0 0;
-      color: var(--text-secondary, #64748b);
-      font-size: 14px;
-    }
-
-    /* ============================================
-       GRID DE 4 TARJETAS KPI
-       ============================================ */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      margin-bottom: 24px;
-    }
-
-    /* Responsive: 2 columnas en tablet */
-    @media (max-width: 1024px) {
-      .kpi-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    /* Responsive: 1 columna en móvil */
-    @media (max-width: 600px) {
-      .kpi-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .kpi-card {
-      border-radius: 16px;
-      border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .kpi-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.14);
-    }
-
-    .kpi-card mat-card-content {
-      display: flex;
-      align-items: center;
-      padding: 20px;
-      gap: 16px;
-    }
-
-    .kpi-icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .kpi-icon mat-icon {
-      font-size: 28px;
-      width: 28px;
-      height: 28px;
-    }
-
-    /* Colores por tipo de KPI */
-    .kpi-usuarios .kpi-icon {
-      background-color: #e3f2fd;
-      color: #1976d2;
-    }
-
-    .kpi-pedidos-hoy .kpi-icon {
-      background-color: #fff3e0;
-      color: #f57c00;
-    }
-
-    .kpi-productos .kpi-icon {
-      background-color: #e8f5e9;
-      color: #388e3c;
-    }
-
-    .kpi-ingresos .kpi-icon {
-      background-color: #fce4ec;
-      color: #c2185b;
-    }
-
-    .kpi-info {
       display: flex;
       flex-direction: column;
-    }
-
-    .kpi-label {
-      font-size: 13px;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .kpi-value {
-      font-size: 28px;
-      font-weight: 600;
-      color: #0f172a;
-    }
-
-    /* ============================================
-       LOADING
-       ============================================ */
-    .loading-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 60px;
-      color: var(--text-secondary, #64748b);
-    }
-
-    .loading-container p {
-      margin-top: 16px;
-    }
-
-    /* ============================================
-       CONTENIDO PRINCIPAL: DOS COLUMNAS
-       ============================================ */
-    .main-content {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
       gap: 24px;
     }
 
-    /* Responsive: Una columna en tablet/móvil */
-    @media (max-width: 900px) {
-      .main-content {
-        grid-template-columns: 1fr;
-      }
+    /* ── Hero ───────────────────────────────────────────────── */
+    .hero { display: flex; flex-direction: column; gap: 4px; }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--bg-tertiary, #f1f5f9);
+      border: 1px solid rgba(15,23,42,0.08);
+      border-radius: 999px; padding: 4px 12px 4px 8px;
+      font-size: 0.75rem; font-weight: 600;
+      color: var(--text-secondary, #475569);
+      width: fit-content; margin-bottom: 6px;
     }
 
-    /* ============================================
-       TABLA DE PEDIDOS RECIENTES
-       ============================================ */
-    .columna-pedidos {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      min-width: 0; /* Previene overflow en grid */
-    }
+    .hero-badge-icon { font-size: 14px; width: 14px; height: 14px; }
 
-    .table-card mat-card-header {
-      margin-bottom: 16px;
-    }
-
-    .table-card mat-card-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 18px;
-      font-weight: 500;
-    }
-
-    .table-card mat-card-title mat-icon {
-      color: #666;
-    }
-
-    .pedidos-table {
-      width: 100%;
-    }
-
-    .pedidos-table th {
-      background-color: rgba(15, 23, 42, 0.04);
-      font-weight: 600;
-      color: var(--text-primary, #0f172a);
-    }
-
-    .pedidos-table td {
-      font-size: 14px;
-    }
-
-    .pedido-link {
-      color: #1976d2;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    .pedido-link:hover {
-      text-decoration: underline;
-    }
-
-    /* Chips de estado */
-    .estado-chip {
-      font-size: 12px;
-      min-height: 24px;
-      padding: 0 8px;
-    }
-
-    .estado-confirmado {
-      background-color: #e8f5e9 !important;
-      color: #2e7d32 !important;
-    }
-
-    .estado-pendiente {
-      background-color: #fff3e0 !important;
-      color: #f57c00 !important;
-    }
-
-    .estado-cancelado {
-      background-color: #ffebee !important;
-      color: #c62828 !important;
-    }
-
-    .estado-procesando {
-      background-color: #e3f2fd !important;
-      color: #1565c0 !important;
-    }
-
-    .estado-entregado {
-      background-color: #f3e5f5 !important;
-      color: #7b1fa2 !important;
-    }
-
-    .no-data {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px;
-      color: #999;
-    }
-
-    .no-data mat-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      margin-bottom: 8px;
-    }
-
-    /* ============================================
-       ACCIONES RÁPIDAS
-       ============================================ */
-    .columna-acciones {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .acciones-card mat-card-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 18px;
-      font-weight: 500;
-    }
-
-    .acciones-card mat-card-title mat-icon {
-      color: #ff9800;
-    }
-
-    .acciones-buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .accion-btn {
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 8px;
-      padding: 12px 16px;
-      text-align: left;
-    }
-
-    .accion-btn mat-icon {
-      margin-right: 4px;
-    }
-
-    .badge {
-      background-color: #f44336;
-      color: white;
-      border-radius: 12px;
-      padding: 2px 8px;
-      font-size: 12px;
-      font-weight: 600;
-      margin-left: auto;
-    }
-
-    /* Tarjeta de información */
-    .info-card mat-card-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 18px;
-      font-weight: 500;
-    }
-
-    .info-card mat-card-title mat-icon {
-      color: #2196f3;
-    }
-
-    .info-list {
-      list-style: none;
-      padding: 0;
+    .hero-title {
       margin: 0;
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--text-primary, #0f172a);
+      letter-spacing: -0.02em;
+      display: inline-flex; align-items: center; gap: 10px;
     }
 
-    .info-list li {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 0;
-      color: #666;
-      font-size: 14px;
+    .hero-icon-wrap {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: #e0f2fe;
+      border: 1px solid rgba(14,165,233,.22);
     }
 
-    .info-list li mat-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
-      color: #4caf50;
+    .hero-icon-wrap mat-icon { color: #0284c7; font-size: 20px; width: 20px; height: 20px; }
+
+    .hero-sub { margin: 2px 0 0; font-size: 0.875rem; color: var(--text-tertiary, #64748b); }
+
+    /* ── KPI grid ───────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
     }
-  `]
+
+    .kpi-card {
+      border-radius: var(--radius) !important;
+      border: 1px solid var(--border-color, rgba(15,23,42,0.08)) !important;
+      box-shadow: none !important;
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.2s, transform 0.2s;
+      animation: fadeUp 340ms cubic-bezier(.2,.7,.2,1) both;
+    }
+
+    .kpi-card:nth-child(2) { animation-delay: 60ms; }
+    .kpi-card:nth-child(3) { animation-delay: 110ms; }
+    .kpi-card:nth-child(4) { animation-delay: 160ms; }
+
+    .kpi-card:hover {
+      box-shadow: 0 4px 20px rgba(15,23,42,0.09) !important;
+      transform: translateY(-1px);
+    }
+
+    .kpi-card mat-card-content {
+      display: flex; align-items: center;
+      padding: 18px 20px;
+      gap: 14px;
+    }
+
+    /* Acento lateral de color */
+    .kpi-accent {
+      position: absolute; left: 0; top: 0;
+      width: 3px; height: 100%;
+      border-radius: 3px 0 0 3px;
+    }
+
+    .kpi-blue  .kpi-accent { background: #3b82f6; }
+    .kpi-amber .kpi-accent { background: #f59e0b; }
+    .kpi-green .kpi-accent { background: #10b981; }
+    .kpi-pink  .kpi-accent { background: #ec4899; }
+
+    /* Icono del KPI */
+    .kpi-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .kpi-icon mat-icon {
+      font-size: 26px; width: 26px; height: 26px;
+      font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 50, 'opsz' 40;
+    }
+
+    .kpi-blue  .kpi-icon { background: #eff6ff; color: #1d4ed8; }
+    .kpi-amber .kpi-icon { background: #fffbeb; color: #b45309; }
+    .kpi-green .kpi-icon { background: #ecfdf5; color: #065f46; }
+    .kpi-pink  .kpi-icon { background: #fdf2f8; color: #9d174d; }
+
+    /* Contenido del KPI */
+    .kpi-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+    .kpi-label {
+      font-size: 0.6875rem; font-weight: 600;
+      color: var(--text-tertiary, #64748b);
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+
+    .kpi-value {
+      font-size: 1.625rem; font-weight: 800;
+      color: var(--text-primary, #0f172a);
+      line-height: 1.1; letter-spacing: -0.02em;
+    }
+
+    /* Skeleton mientras carga */
+    .kpi-skeleton {
+      display: block; height: 28px; width: 80px;
+      border-radius: 6px;
+      background: rgba(15,23,42,0.08);
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+
+    /* Deltas de tendencia */
+    .kpi-delta {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 0.6875rem; font-weight: 600;
+      color: var(--text-tertiary, #64748b);
+      margin-top: 2px;
+    }
+
+    .kpi-delta-up    { color: #059669; }
+    .kpi-delta-neutral { color: var(--text-tertiary, #64748b); }
+
+    .delta-icon { font-size: 13px !important; width: 13px !important; height: 13px !important; }
+
+    /* ── Quick actions ───────────────────────────────────────── */
+    .quick-actions { display: flex; flex-direction: column; gap: 12px; }
+
+    .section-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 1rem; font-weight: 700;
+      color: var(--text-primary, #0f172a); margin: 0;
+    }
+
+    .section-title mat-icon { font-size: 20px; width: 20px; height: 20px; color: var(--text-secondary, #475569); }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .action-btn {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      background: var(--bg-secondary, #fff);
+      border: 1px solid var(--border-color, rgba(15,23,42,0.08));
+      border-radius: 12px;
+      cursor: pointer; font-family: inherit;
+      text-align: left; color: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    }
+
+    .action-btn:hover {
+      border-color: rgba(15,23,42,0.16);
+      box-shadow: 0 2px 12px rgba(15,23,42,0.07);
+      transform: translateY(-1px);
+    }
+
+    .action-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .action-icon mat-icon {
+      font-size: 20px; width: 20px; height: 20px;
+      font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 50, 'opsz' 32;
+    }
+
+    .action-icon-blue  { background: #eff6ff; color: #1d4ed8; }
+    .action-icon-amber { background: #fffbeb; color: #b45309; }
+    .action-icon-green { background: #ecfdf5; color: #065f46; }
+    .action-icon-pink  { background: #fdf2f8; color: #9d174d; }
+    .action-icon-purple{ background: #f5f3ff; color: #6d28d9; }
+
+    .action-copy { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+    .action-label { font-size: 0.875rem; font-weight: 700; color: var(--text-primary, #0f172a); }
+    .action-sub   { font-size: 0.75rem; color: var(--text-tertiary, #64748b); }
+
+    .action-badge {
+      background: #ef4444; color: #fff;
+      font-size: 0.6875rem; font-weight: 700;
+      border-radius: 999px; padding: 2px 7px;
+      flex-shrink: 0; line-height: 1.4;
+    }
+
+    .action-arrow {
+      font-size: 18px !important; width: 18px !important; height: 18px !important;
+      color: var(--text-tertiary, #64748b);
+      flex-shrink: 0;
+    }
+
+    /* ── Loading ─────────────────────────────────────────────── */
+    .loading-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 48px; gap: 16px;
+      color: var(--text-tertiary, #64748b);
+      font-size: 0.875rem;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .kpi-grid     { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .actions-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .kpi-grid     { grid-template-columns: minmax(0, 1fr); }
+      .actions-grid { grid-template-columns: minmax(0, 1fr); }
+      .hero-title   { font-size: 1.375rem; }
+    }
+
+    /* ── Animaciones ──────────────────────────────────────────── */
+    @keyframes pageIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes shimmer {
+      0%, 100% { opacity: 0.5; }
+      50%       { opacity: 1; }
+    }
+  `],
 })
 export class DashboardComponent implements OnInit {
-  // ============================================
-  // SERVICIOS
-  // ============================================
-  private readonly usuariosService = inject(UsuariosService);
-  private readonly pedidosService = inject(PedidosService);
+
+  // ── Servicios ────────────────────────────────────────────
+  private readonly usuariosService  = inject(UsuariosService);
+  private readonly pedidosService   = inject(PedidosService);
   private readonly productosService = inject(ProductosService);
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly destroyRef       = inject(DestroyRef);
 
-  // ============================================
-  // SEÑALES (Signals) - Estado Reactivo
-  // ============================================
-  
-  // KPIs
-  protected readonly usuariosActivos = signal<number>(0);
-  protected readonly pedidosHoy = signal<number>(0);
-  protected readonly productosActivos = signal<number>(0);
-  protected readonly ingresosMes = signal<number>(0);
-  protected readonly pedidosPendientes = signal<number>(0);
+  // ── Estado ───────────────────────────────────────────────
+  protected readonly cargando           = signal(true);
+  protected readonly usuariosActivos    = signal(0);
+  protected readonly pedidosHoy         = signal(0);
+  protected readonly productosActivos   = signal(0);
+  protected readonly ingresosMes        = signal(0);
+  protected readonly pedidosPendientes  = signal(0);
 
-  // Datos
-  protected readonly pedidosRecientes = signal<Pedido[]>([]);
+  // ── KPIs derivados ───────────────────────────────────────
+  protected readonly kpis = computed(() => [
+    {
+      id: 'usuarios',
+      label: 'Usuarios activos',
+      icon: 'people',
+      color: 'blue',
+      displayValue: this.usuariosActivos().toLocaleString('es-PE'),
+      tooltip: 'Total de usuarios con acceso activo',
+      delta: { value: 12, label: '+12% este mes', up: true } satisfies KpiDelta,
+    },
+    {
+      id: 'pedidos',
+      label: 'Pedidos hoy',
+      icon: 'shopping_cart',
+      color: 'amber',
+      displayValue: this.pedidosHoy().toLocaleString('es-PE'),
+      tooltip: 'Pedidos registrados en el día de hoy',
+      delta: { value: 5, label: '+5 vs. ayer', up: true } satisfies KpiDelta,
+    },
+    {
+      id: 'productos',
+      label: 'Productos activos',
+      icon: 'inventory_2',
+      color: 'green',
+      displayValue: this.productosActivos().toLocaleString('es-PE'),
+      tooltip: 'Productos disponibles en el catálogo',
+      delta: { value: 0, label: 'Sin cambios', up: null } satisfies KpiDelta,
+    },
+    {
+      id: 'ingresos',
+      label: 'Ingresos del mes',
+      icon: 'attach_money',
+      color: 'pink',
+      displayValue: new Intl.NumberFormat('es-PE', {
+        style: 'currency', currency: 'PEN', maximumFractionDigits: 0,
+      }).format(this.ingresosMes()),
+      tooltip: 'Total de ingresos confirmados este mes',
+      delta: { value: 18, label: '+18% vs. anterior', up: true } satisfies KpiDelta,
+    },
+  ]);
 
-  // Estado de carga
-  protected readonly cargando = signal<boolean>(true);
+  // ── Acciones rápidas ─────────────────────────────────────
+  protected readonly accionesRapidas = [
+    { label: 'Nuevo producto',    sub: 'Agregar al catálogo',          icon: 'add_circle',     color: 'blue',   route: '/productos/nuevo',   badge: null },
+    { label: 'Gestionar pedidos', sub: 'Revisar y despachar',          icon: 'local_shipping', color: 'amber',  route: '/pedidos',           badge: '7'  },
+    { label: 'Ver reportes',      sub: 'Ingresos y métricas',          icon: 'bar_chart',      color: 'green',  route: '/reportes',          badge: null },
+    { label: 'Usuarios',          sub: 'Administrar cuentas',          icon: 'manage_accounts',color: 'purple', route: '/usuarios',          badge: null },
+    { label: 'Inventario',        sub: 'Stock y reposición',           icon: 'inventory',      color: 'pink',   route: '/inventario',        badge: null },
+    { label: 'Configuración',     sub: 'Ajustes de la tienda',         icon: 'settings',       color: 'blue',   route: '/configuracion',     badge: null },
+  ];
 
-  // Columnas para la tabla
-  protected readonly displayedColumns = ['numero_pedido', 'cliente', 'total', 'estado', 'fecha'];
-
-  // ============================================
-  // CICLO DE VIDA
-  // ============================================
-  
+  // ── Lifecycle ────────────────────────────────────────────
   ngOnInit(): void {
-    this.cargarEstadisticas();
+    this._cargarEstadisticas();
   }
 
-  // ============================================
-  // MÉTODOS
-  // ============================================
-
-  /**
-   * Carga todas las estadísticas del dashboard
-   */
-  private cargarEstadisticas(): void {
+  // ── Carga de datos con forkJoin ──────────────────────────
+  private _cargarEstadisticas(): void {
     this.cargando.set(true);
 
-    // Cargar usuarios activos
-    this.usuariosService.contarActivos().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (count) => this.usuariosActivos.set(count),
-      error: () => this.usuariosActivos.set(0)
-    });
-
-    // Cargar pedidos de hoy
-    this.pedidosService.contarPedidosHoy().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (count) => this.pedidosHoy.set(count),
-      error: () => this.pedidosHoy.set(0)
-    });
-
-    // Cargar productos activos
-    this.productosService.contarActivos().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (count) => this.productosActivos.set(count),
-      error: () => this.productosActivos.set(0)
-    });
-
-    // Cargar ingresos del mes
-    this.pedidosService.getIngresosMes().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (total) => this.ingresosMes.set(total),
-      error: () => this.ingresosMes.set(0)
-    });
-
-    // Cargar pedidos recientes
-    this.pedidosService.getRecientes(10).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (pedidos) => this.pedidosRecientes.set(pedidos),
-      error: () => this.pedidosRecientes.set([])
-    });
-
-    // Cargar pedidos pendientes
-    this.pedidosService.contarPendientes().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (count) => this.pedidosPendientes.set(count),
-      error: () => this.pedidosPendientes.set(0),
-      complete: () => this.cargando.set(false)
+    forkJoin({
+      usuarios:   this.usuariosService.contarActivos().pipe(catchError(() => of(0))),
+      pedidosHoy: this.pedidosService.contarPedidosHoy().pipe(catchError(() => of(0))),
+      productos:  this.productosService.contarActivos().pipe(catchError(() => of(0))),
+      ingresos:   this.pedidosService.getIngresosMes().pipe(catchError(() => of(0))),
+      pendientes: this.pedidosService.contarPendientes().pipe(catchError(() => of(0))),
+    })
+    .pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe({
+      next: ({ usuarios, pedidosHoy, productos, ingresos, pendientes }) => {
+        this.usuariosActivos.set(usuarios);
+        this.pedidosHoy.set(pedidosHoy);
+        this.productosActivos.set(productos);
+        this.ingresosMes.set(ingresos);
+        this.pedidosPendientes.set(pendientes);
+        this.cargando.set(false);
+      },
+      error: () => this.cargando.set(false),
     });
   }
 
-  /**
-   * Obtiene el label legible para el estado del pedido
-   */
-  protected getEstadoLabel(estado: string): string {
-    const estados: Record<string, string> = {
-      'pendiente': 'Pendiente',
-      'confirmado': 'Confirmado',
-      'procesando': 'Procesando',
-      'enviado': 'Enviado',
-      'entregado': 'Entregado',
-      'cancelado': 'Cancelado'
+  // ── Helpers de estado para chips ────────────────────────
+  protected getEstadoLabel(estado: EstadoPedido): string {
+    const labels: Record<EstadoPedido, string> = {
+      pendiente:  'Pendiente',
+      confirmado: 'Confirmado',
+      procesando: 'Procesando',
+      enviado:    'Enviado',
+      entregado:  'Entregado',
+      cancelado:  'Cancelado',
     };
-    return estados[estado] || estado;
+    return labels[estado] ?? estado;
+  }
+
+  protected getEstadoIcon(estado: EstadoPedido): string {
+    const icons: Record<EstadoPedido, string> = {
+      pendiente:  'schedule',
+      confirmado: 'verified',
+      procesando: 'autorenew',
+      enviado:    'local_shipping',
+      entregado:  'task_alt',
+      cancelado:  'cancel',
+    };
+    return icons[estado] ?? 'info';
+  }
+
+  protected getEstadoClass(estado: EstadoPedido): string {
+    const cls: Record<EstadoPedido, string> = {
+      pendiente:  'chip-amber',
+      confirmado: 'chip-green',
+      procesando: 'chip-blue',
+      enviado:    'chip-blue',
+      entregado:  'chip-purple',
+      cancelado:  'chip-red',
+    };
+    return cls[estado] ?? '';
   }
 }

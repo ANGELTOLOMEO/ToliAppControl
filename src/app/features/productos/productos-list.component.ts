@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Table, TableModule } from 'primeng/table';
@@ -55,6 +55,25 @@ interface Column {
       <div class="card-container">
         <p-toast />
 
+        <div class="intro-stack">
+          <section class="feature-hero list-hero">
+            <div class="feature-hero-copy">
+              <div class="feature-badge">Catalogo</div>
+              <h1>
+                <span class="hero-icon"><i class="pi pi-box"></i></span>
+                Productos
+              </h1>
+              <p>Gestiona inventario, categorias y stock con una tabla mas clara y mejor jerarquia visual.</p>
+            </div>
+
+            <div class="chip-row">
+              <span class="soft-chip">Stock en tiempo real</span>
+              <span class="soft-chip">Seleccion multiple</span>
+              <span class="soft-chip">Edicion rapida</span>
+            </div>
+          </section>
+        </div>
+
         <p-toolbar styleClass="mb-6">
           <ng-template #start>
             <p-button label="Nuevo" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" />
@@ -91,8 +110,8 @@ interface Column {
           <ng-template #caption>
             <div class="caption">
               <div class="caption-left">
-                <div class="caption-title">Productos</div>
-                <div class="caption-subtitle">Gestiona tu catálogo</div>
+                <div class="caption-title">Inventario</div>
+                <div class="caption-subtitle">Busca, selecciona y edita productos del catalogo</div>
               </div>
               <p-iconfield class="caption-search">
                 <p-inputicon styleClass="pi pi-search" />
@@ -133,24 +152,44 @@ interface Column {
                 <p-tableCheckbox [value]="product" />
               </td>
               <td style="min-width: 6rem">
-                <img *ngIf="product.imagen" [src]="product.imagen" [alt]="product.nombre" class="thumb" />
-                <span *ngIf="!product.imagen">-</span>
+                <div class="thumb-shell">
+                  <img *ngIf="product.imagen" [src]="product.imagen" [alt]="product.nombre" class="thumb" />
+                  <span *ngIf="!product.imagen" class="thumb-fallback">IMG</span>
+                </div>
               </td>
-              <td style="min-width: 18rem">{{ product.nombre }}</td>
-              <td style="min-width: 16rem">{{ product.categoria || product.categoria_nombre || '-' }}</td>
-              <td>{{ product.precio | currency: 'PEN':'S/ ' }}</td>
+              <td style="min-width: 18rem"><span class="product-name">{{ product.nombre }}</span></td>
+              <td style="min-width: 16rem"><span class="product-category">{{ product.categoria || product.categoria_nombre || '-' }}</span></td>
+              <td><span class="price-pill">{{ product.precio | currency: 'PEN':'S/ ' }}</span></td>
               <td>
-                <p-tag
-                  [value]="(product.stock ?? 0) > 0 ? 'EN STOCK' : 'SIN STOCK'"
-                  [severity]="(product.stock ?? 0) > 0 ? 'success' : 'danger'"
-                />
+                <div class="stock-cell">
+                  <p-tag
+                    [value]="(product.stock ?? 0) > 0 ? 'IN STOCK' : 'OUT OF STOCK'"
+                    [severity]="(product.stock ?? 0) > 0 ? 'success' : 'danger'"
+                  />
+                  <small>{{ product.stock ?? 0 }} units</small>
+                </div>
               </td>
               <td>
-                <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true" (onClick)="editProduct(product)" />
-                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true" (onClick)="deleteProduct(product)" />
+                <div class="actions-cell">
+                  <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true" (onClick)="editProduct(product)" />
+                  <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true" (onClick)="deleteProduct(product)" />
+                </div>
               </td>
             </tr>
           </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="7">
+                <div class="empty">
+                  <i class="pi pi-box"></i>
+                  <div class="empty-title">Sin productos</div>
+                  <div class="empty-subtitle">No hay registros cargados para mostrar en el catalogo.</div>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+
         </p-table>
 
         <p-dialog [(visible)]="productDialog" [style]="{ width: '520px' }" header="Producto" [modal]="true">
@@ -158,7 +197,7 @@ interface Column {
             <div class="dialog-grid">
               <div class="field">
                 <label for="nombre">Nombre</label>
-                <input type="text" pInputText id="nombre" [(ngModel)]="product.nombre" required autofocus fluid />
+                <input type="text" pInputText id="nombre" [(ngModel)]="product.nombre" required fluid />
                 <small class="text-red-500" *ngIf="submitted && !product.nombre">Nombre es obligatorio.</small>
               </div>
 
@@ -206,6 +245,21 @@ interface Column {
       padding: 0;
     }
 
+    .intro-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .list-hero {
+      padding: 0;
+    }
+
+    .hero-icon i {
+      font-size: 1.1rem;
+    }
+
     .caption {
       display: flex;
       align-items: center;
@@ -236,11 +290,93 @@ interface Column {
       max-width: 100%;
     }
 
+    .empty {
+      padding: 26px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-tertiary, #64748b);
+    }
+
+    .empty i {
+      font-size: 1.2rem;
+      margin-bottom: 4px;
+    }
+
+    .empty-title {
+      font-weight: 800;
+      color: var(--text-primary, #0f172a);
+    }
+
+    .empty-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-secondary, #475569);
+      text-align: center;
+    }
+
+    .thumb-shell {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0.02));
+      border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+      overflow: hidden;
+    }
+
     .thumb {
-      width: 44px;
-      height: 44px;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
-      border-radius: 6px;
+      border-radius: 0;
+    }
+
+    .thumb-fallback {
+      color: var(--text-tertiary, #64748b);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+    }
+
+    .product-name {
+      color: var(--text-primary, #0f172a);
+      font-weight: 700;
+    }
+
+    .product-category {
+      color: var(--text-secondary, #475569);
+      font-weight: 600;
+    }
+
+    .price-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: var(--bg-tertiary, #eef2f7);
+      color: var(--text-primary, #0f172a);
+      font-weight: 800;
+    }
+
+    .stock-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-start;
+    }
+
+    .stock-cell small {
+      color: var(--text-tertiary, #64748b);
+      font-size: 0.78rem;
+    }
+
+    .actions-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .dialog-grid {
@@ -260,6 +396,62 @@ interface Column {
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
+
+    :host ::ng-deep .p-toolbar {
+      background: var(--bg-tertiary, #eef2f7);
+    }
+
+    :host ::ng-deep .p-datatable {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+      box-shadow: none;
+    }
+
+    :host ::ng-deep .p-datatable .p-datatable-tbody > tr {
+      transition: background-color 180ms ease;
+    }
+
+    :host ::ng-deep .p-datatable .p-datatable-tbody > tr:hover {
+      background: rgba(15, 23, 42, 0.03);
+    }
+
+    :host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
+      background: var(--bg-tertiary, #eef2f7);
+      color: var(--text-primary, #0f172a);
+      font-weight: 800;
+      border-color: var(--border-color, rgba(15, 23, 42, 0.08));
+    }
+
+    :host ::ng-deep .p-datatable .p-datatable-tbody > tr:nth-child(even) {
+      background: rgba(15, 23, 42, 0.015);
+    }
+
+    :host ::ng-deep .p-dialog .p-dialog-header {
+      border-bottom: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+    }
+
+    :host ::ng-deep .p-dialog .p-dialog-content,
+    :host ::ng-deep .p-dialog .p-dialog-footer {
+      background: var(--bg-secondary, #ffffff);
+    }
+
+    @media (max-width: 900px) {
+      .caption {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .caption-search {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .field-row {
+        grid-template-columns: 1fr;
+      }
+    }
   `]
   ,
   providers: [MessageService, ConfirmationService]
@@ -270,6 +462,14 @@ export class ProductosListComponent implements OnInit {
   private readonly confirmationService = inject(ConfirmationService);
 
   protected readonly products = signal<Producto[]>([]);
+  protected readonly totalProductos = computed(() => this.products().length);
+  protected readonly productosConStock = computed(() => this.products().filter((product) => (product.stock ?? 0) > 0).length);
+  protected readonly productosSinStock = computed(() => this.products().filter((product) => (product.stock ?? 0) <= 0).length);
+  protected readonly categoriasActivas = computed(() => new Set(
+    this.products()
+      .map((product) => (product.categoria || product.categoria_nombre || '').trim())
+      .filter(Boolean)
+  ).size);
 
   protected productDialog = false;
   protected submitted = false;

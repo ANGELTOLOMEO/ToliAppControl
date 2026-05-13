@@ -108,6 +108,15 @@ export class PedidosService {
   }
 
   /**
+   * Lista pedidos con filtros opcionales
+   */
+  list(params?: Record<string, string | number>): Observable<Pedido[]> {
+    return this.api.get<Pedido[]>('pedidos', params).pipe(
+      map(response => response.data ?? [])
+    );
+  }
+
+  /**
    * Obtiene estadísticas completas del dashboard
    */
   getEstadisticas(): Observable<{

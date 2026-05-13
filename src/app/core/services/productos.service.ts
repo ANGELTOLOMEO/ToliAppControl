@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, map, throwError } from 'rxjs';
 import { ApiService } from './api.service';
 import { Producto } from '../models';
 import { environment } from '../../../environments/environment';
@@ -14,13 +14,31 @@ import { environment } from '../../../environments/environment';
 export class ProductosService {
   private readonly api = inject(ApiService);
 
+  private extractList(response: any): any[] {
+    const list = response?.data ?? response?.productos ?? response?.items ?? [];
+    return Array.isArray(list) ? list : [];
+  }
+
+  private extractOne(response: any): any | null {
+    return response?.data ?? response?.producto ?? response?.item ?? response ?? null;
+  }
+
   private buildProductoPayload(payload: Partial<Producto>): Record<string, unknown> {
+    const categoriaTexto = payload.categoria?.trim() || payload.categoria_nombre?.trim() || undefined;
+    const precioNumero = typeof payload.precio === 'number' ? payload.precio : Number(payload.precio);
+
     const body: Record<string, unknown> = {
       nombre: payload.nombre?.trim(),
       descripcion: payload.descripcion,
-      precio: payload.precio,
-      categoria: payload.categoria?.trim(),
+      precio: Number.isFinite(precioNumero) ? precioNumero : undefined,
+      precio_mayor: payload.precio_mayor,
+      cantidad_minimaMayor: payload.cantidad_minimaMayor,
+      categoria: categoriaTexto,
+      categoria_id: payload.categoria_id,
+      categoria_nombre: categoriaTexto,
       stock: payload.stock,
+      sku: payload.sku,
+      activo: payload.activo,
       imagen: this.normalizeUrl(payload.imagen)
     };
 
@@ -32,6 +50,25 @@ export class ProductosService {
     });
 
     return body;
+  }
+
+  private withAlternativeCrudPayload<T>(
+    request: (body: Record<string, unknown>) => Observable<T>,
+    body: Record<string, unknown>
+  ): Observable<T> {
+    return request(body).pipe(
+      catchError((error) => {
+        const altBody: Record<string, unknown> = {
+          producto: body,
+          ...body,
+          categoria_nombre: body['categoria_nombre'] ?? body['categoria'],
+          categoria: body['categoria'] ?? body['categoria_nombre']
+        };
+        return request(altBody).pipe(
+          catchError(() => throwError(() => error))
+        );
+      })
+    );
   }
 
   private normalizeUrl(value: unknown): string | null {
@@ -92,8 +129,7 @@ export class ProductosService {
   getAll(params?: Record<string, string | number>): Observable<Producto[]> {
     return this.api.get<any>('productos', params).pipe(
       map((response: any) => {
-        const list = response?.data ?? response?.productos ?? [];
-        if (!Array.isArray(list)) return [];
+        const list = this.extractList(response);
         return list.map((p) => this.mapProducto(p));
       })
     );
@@ -105,7 +141,7 @@ export class ProductosService {
   getById(id: string): Observable<Producto | null> {
     return this.api.get<any>(`productos/${id}`).pipe(
       map((response: any) => {
-        const raw = response?.data ?? response?.producto ?? response ?? null;
+        const raw = this.extractOne(response);
         if (!raw) return null;
         return this.mapProducto(raw);
       })
@@ -116,9 +152,10 @@ export class ProductosService {
    * Crea un producto
    */
   create(payload: Partial<Producto>): Observable<Producto | null> {
-    return this.api.post<any>('productos', this.buildProductoPayload(payload)).pipe(
+    const body = this.buildProductoPayload(payload);
+    return this.withAlternativeCrudPayload((requestBody) => this.api.post<any>('productos', requestBody), body).pipe(
       map((response: any) => {
-        const raw = response?.data ?? response?.producto ?? response ?? null;
+        const raw = this.extractOne(response);
         if (!raw) return null;
         return this.mapProducto(raw);
       })
@@ -129,13 +166,29 @@ export class ProductosService {
    * Actualiza un producto por ID
    */
   update(id: string, payload: Partial<Producto>): Observable<Producto | null> {
-    return this.api.put<any>(`productos/${id}`, this.buildProductoPayload(payload)).pipe(
+    const body = this.buildProductoPayload(payload);
+    return this.withAlternativeCrudPayload((requestBody) => this.api.put<any>(`productos/${id}`, requestBody), body).pipe(
       map((response: any) => {
-        const raw = response?.data ?? response?.producto ?? response ?? null;
+        const raw = this.extractOne(response);
         if (!raw) return null;
         return this.mapProducto(raw);
       })
     );
+  }
+
+  /**
+   * Alias CRUD explicitos para uso directo
+   */
+  get(params?: Record<string, string | number>): Observable<Producto[]> {
+    return this.getAll(params);
+  }
+
+  post(payload: Partial<Producto>): Observable<Producto | null> {
+    return this.create(payload);
+  }
+
+  put(id: string, payload: Partial<Producto>): Observable<Producto | null> {
+    return this.update(id, payload);
   }
 
   /**

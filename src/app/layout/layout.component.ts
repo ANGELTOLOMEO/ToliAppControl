@@ -181,6 +181,7 @@ export class LayoutComponent implements OnInit, AfterViewInit {
       'dashboard': 'Dashboard',
       'usuarios': 'Usuarios',
       'productos': 'Productos',
+      'categorias': 'Categorias',
       'pedidos': 'Pedidos',
       'envios': 'Envíos',
       'pagos': 'Pagos',

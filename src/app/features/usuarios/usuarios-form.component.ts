@@ -73,13 +73,30 @@ import { Usuario } from '../../core/models';
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      animation: pageFadeIn 240ms ease-out;
+    }
+
     .page-container {
       padding: 0;
     }
 
+    .form-wrap {
+      border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+      border-radius: 16px;
+      box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+      background:
+        radial-gradient(900px 300px at 120% -45%, color-mix(in srgb, var(--app-primary, #0ea5e9) 9%, transparent), transparent 60%),
+        var(--bg-secondary, #ffffff);
+    }
+
     .form-wrap h1 {
       margin: 0 0 16px;
-      font-size: 1.2rem;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      color: var(--text-primary, #0f172a);
     }
 
     .form-grid {
@@ -101,6 +118,22 @@ import { Usuario } from '../../core/models';
     .field label {
       font-weight: 700;
       font-size: 0.9rem;
+      color: var(--text-primary, #0f172a);
+    }
+
+    :host ::ng-deep .p-inputtext {
+      border-radius: 12px;
+      border-color: var(--border-color, rgba(15, 23, 42, 0.12));
+      transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+    }
+
+    :host ::ng-deep .p-inputtext:enabled:hover {
+      border-color: color-mix(in srgb, var(--app-primary, #0ea5e9) 45%, rgba(15, 23, 42, 0.12));
+    }
+
+    :host ::ng-deep .p-inputtext:enabled:focus {
+      border-color: color-mix(in srgb, var(--app-primary, #0ea5e9) 70%, #ffffff);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-primary, #0ea5e9) 22%, transparent);
     }
 
     .actions {
@@ -108,12 +141,38 @@ import { Usuario } from '../../core/models';
       display: flex;
       justify-content: flex-end;
       gap: 8px;
-      margin-top: 8px;
+      margin-top: 10px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border-color, rgba(15, 23, 42, 0.12));
+    }
+
+    :host ::ng-deep .p-button {
+      border-radius: 10px;
+    }
+
+    @keyframes pageFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     @media (max-width: 768px) {
       .form-grid {
         grid-template-columns: 1fr;
+      }
+
+      .actions {
+        justify-content: stretch;
+        flex-wrap: wrap;
+      }
+
+      .actions :is(p-button, .p-button) {
+        flex: 1 1 calc(50% - 6px);
       }
     }
   `]

@@ -92,6 +92,16 @@ export const routes: Routes = [
       },
 
       // ----------------------------------------
+      // Categorias - ADMIN, OPERACIONES_INVENTARIO
+      // ----------------------------------------
+      {
+        path: 'categorias',
+        canActivate: [roleGuard],
+        data: { roles: { allowRoles: [ROLES.ADMIN, ROLES.OPERACIONES_INVENTARIO] } },
+        loadComponent: () => import('./features/categorias/categorias-list.component').then(m => m.CategoriasListComponent)
+      },
+
+      // ----------------------------------------
       // Pedidos - ADMIN, VENTAS_*, OPERACIONES_*, FINANZAS_*, CLIENTE
       // ----------------------------------------
       {

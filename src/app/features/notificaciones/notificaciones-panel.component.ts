@@ -23,15 +23,19 @@ interface NotifUi {
   template: `
     <div class="page-container">
       <div class="card-container notifications-shell">
+        <!-- Hero Section -->
         <div class="hero">
-          <div>
-            <h2>Centro de notificaciones</h2>
-            <p>Revisa actividad reciente y mantn tu equipo al da.</p>
+          <div class="hero-badge">
+            <i class="pi pi-bell" style="font-size: 14px;"></i>
+            Sistema
           </div>
-          <div class="hero-actions">
-            <p-tag severity="info" [value]="pendingCount() + ' pendientes'" />
-            <p-button label="Marcar todo leido" icon="pi pi-check" severity="secondary" (onClick)="markAllAsRead()" />
-          </div>
+          <h2><i class="pi pi-bell"></i> Notificaciones</h2>
+          <p>Revisa actividad reciente y mantén tu equipo al día</p>
+        </div>
+
+        <div class="hero-actions">
+          <p-tag severity="info" [value]="pendingCount() + ' pendientes'" />
+          <p-button label="Marcar todo leído" icon="pi pi-check" severity="secondary" (onClick)="markAllAsRead()" />
         </div>
 
         <div class="toolbar">
@@ -78,40 +82,87 @@ interface NotifUi {
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      animation: pageIn 300ms cubic-bezier(.2,.7,.2,1);
+    }
+
     .notifications-shell {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 24px 32px;
+      box-sizing: border-box;
     }
 
     .hero {
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 16px;
-      border-radius: 14px;
-      border: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
-      background:
-        radial-gradient(500px 150px at 10% 0%, color-mix(in srgb, var(--accent-primary, #10b981) 18%, transparent), transparent 60%),
-        var(--bg-tertiary, #f1f5f9);
+      flex-direction: column;
+      gap: 6px;
     }
 
-    h2 {
-      margin: 0;
-      font-size: 1.2rem;
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(59,130,246,0.08) 100%);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 999px;
+      padding: 5px 14px 5px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #1d4ed8;
+      width: fit-content;
+    }
+
+    h2 { 
+      margin: 0; 
+      font-size: 2rem; 
+      font-weight: 800; 
+      letter-spacing: -0.03em; 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 12px; 
       color: var(--text-primary, #0f172a);
     }
 
-    .hero p {
-      margin: 6px 0 0;
-      color: var(--text-secondary, #475569);
+    h2 i { 
+      width: 44px; 
+      height: 44px; 
+      border-radius: 12px;
+      display: inline-flex; 
+      align-items: center; 
+      justify-content: center;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      color: #d97706 !important;
+      font-size: 1.1rem;
     }
 
-    .hero-actions, .toolbar {
+    .hero p {
+      margin: 4px 0 0;
+      color: var(--text-tertiary, #64748b);
+      font-size: 0.9375rem;
+    }
+
+    .hero-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      background: var(--bg-secondary, #fff);
+      border-radius: 12px;
+      border: 1px solid rgba(15,23,42,0.06);
     }
 
     .section-label {
