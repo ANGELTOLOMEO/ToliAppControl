@@ -19,7 +19,8 @@ import { IconFieldModule } from 'primeng/iconfield';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ProductosService } from '../../core/services/productos.service';
-import { Producto } from '../../core/models';
+import { CategoriasService } from '../../core/services/categorias.service';
+import { Categoria, Producto } from '../../core/models';
 
 interface Column {
   field: string;
@@ -153,7 +154,7 @@ interface Column {
               </td>
               <td style="min-width: 6rem">
                 <div class="thumb-shell">
-                  <img *ngIf="product.imagen" [src]="product.imagen" [alt]="product.nombre" class="thumb" />
+                  <img *ngIf="product.imagen" [src]="product.imagen" [alt]="product.nombre" class="thumb" (error)="onProductImageError(product)" />
                   <span *ngIf="!product.imagen" class="thumb-fallback">IMG</span>
                 </div>
               </td>
@@ -212,14 +213,33 @@ interface Column {
                   <p-inputnumber id="precio" [(ngModel)]="product.precio" mode="currency" currency="PEN" locale="es-PE" fluid />
                 </div>
                 <div class="field">
-                  <label for="stock">Stock</label>
-                  <p-inputnumber id="stock" [(ngModel)]="product.stock" fluid />
+                  <label for="stock">Estado de stock</label>
+                  <p-select
+                    id="stock"
+                    [options]="stockOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    [(ngModel)]="product.stock"
+                    placeholder="Seleccionar estado"
+                    fluid
+                  />
                 </div>
               </div>
 
               <div class="field">
                 <label for="categoria">Categoría</label>
-                <input type="text" pInputText id="categoria" [(ngModel)]="product.categoria" fluid />
+                <p-select
+                  id="categoria"
+                  [options]="categories()"
+                  optionLabel="nombre"
+                  optionValue="id"
+                  [(ngModel)]="product.categoria_id"
+                  (ngModelChange)="onCategoryChange($event)"
+                  placeholder="Selecciona una categoría"
+                  [filter]="true"
+                  filterBy="nombre"
+                  fluid
+                />
               </div>
 
               <div class="field">
@@ -458,10 +478,12 @@ interface Column {
 })
 export class ProductosListComponent implements OnInit {
   private readonly productosService = inject(ProductosService);
+  private readonly categoriasService = inject(CategoriasService);
   private readonly messageService = inject(MessageService);
   private readonly confirmationService = inject(ConfirmationService);
 
   protected readonly products = signal<Producto[]>([]);
+  protected readonly categories = signal<Categoria[]>([]);
   protected readonly totalProductos = computed(() => this.products().length);
   protected readonly productosConStock = computed(() => this.products().filter((product) => (product.stock ?? 0) > 0).length);
   protected readonly productosSinStock = computed(() => this.products().filter((product) => (product.stock ?? 0) <= 0).length);
@@ -476,6 +498,10 @@ export class ProductosListComponent implements OnInit {
 
   protected product: Partial<Producto> = {};
   protected selectedProducts: Producto[] | null = null;
+  protected readonly stockOptions = [
+    { label: 'IN STOCK', value: 1 },
+    { label: 'OUT OF STOCK', value: 0 }
+  ];
 
   @ViewChild('dt') protected dt!: Table;
 
@@ -489,6 +515,7 @@ export class ProductosListComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarProductos();
+    this.cargarCategorias();
   }
 
   protected exportCSV(): void {
@@ -500,14 +527,38 @@ export class ProductosListComponent implements OnInit {
   }
 
   protected openNew(): void {
-    this.product = {};
+    this.product = { stock: 1 };
     this.submitted = false;
     this.productDialog = true;
   }
 
   protected editProduct(product: Producto): void {
-    this.product = { ...product };
+    const categoriaId =
+      product.categoria_id ||
+      this.categories().find((c) => c.nombre === (product.categoria || product.categoria_nombre))?.id;
+    this.product = {
+      ...product,
+      categoria_id: categoriaId,
+      stock: (product.stock ?? 0) > 0 ? (product.stock ?? 0) : 0
+    };
     this.productDialog = true;
+  }
+
+  protected onCategoryChange(categoryId: string | null): void {
+    const selected = this.categories().find((c) => c.id === categoryId);
+    this.product = {
+      ...this.product,
+      categoria_id: selected?.id,
+      categoria: selected?.nombre,
+      categoria_nombre: selected?.nombre
+    };
+  }
+
+  protected onProductImageError(product: Producto): void {
+    const next = this.products().map((p) =>
+      p.id === product.id ? { ...p, imagen: null } : p
+    );
+    this.products.set(next);
   }
 
   protected deleteSelectedProducts(): void {
@@ -588,8 +639,21 @@ export class ProductosListComponent implements OnInit {
   protected saveProduct(): void {
     this.submitted = true;
     const nombre = this.product.nombre?.trim();
-    const categoria = this.product.categoria?.trim();
+    const selectedCategory = this.categories().find((c) => c.id === this.product.categoria_id);
+    const categoria = (
+      this.product.categoria ||
+      this.product.categoria_nombre ||
+      selectedCategory?.nombre ||
+      this.product.categoria_id ||
+      ''
+    ).trim();
     const precio = this.product.precio;
+    const payload: Partial<Producto> = {
+      ...this.product,
+      nombre,
+      categoria,
+      categoria_nombre: categoria
+    };
 
     if (!nombre || !categoria || typeof precio !== 'number' || !Number.isFinite(precio) || precio <= 0) {
       this.messageService.add({
@@ -602,7 +666,7 @@ export class ProductosListComponent implements OnInit {
     }
 
     if (this.product.id) {
-      this.productosService.update(this.product.id, this.product).subscribe({
+      this.productosService.update(this.product.id, payload).subscribe({
         next: (updated) => {
           const id = this.product.id as string;
           const nextProduct: Producto = (updated as Producto) || (this.product as Producto);
@@ -637,7 +701,7 @@ export class ProductosListComponent implements OnInit {
       return;
     }
 
-    this.productosService.create(this.product).subscribe({
+    this.productosService.create(payload).subscribe({
       next: (created) => {
         const nextProduct = (created as Producto) || (this.product as Producto);
         this.products.set([nextProduct, ...this.products()]);
@@ -655,6 +719,21 @@ export class ProductosListComponent implements OnInit {
           severity: 'error',
           summary: 'Error',
           detail: e instanceof Error ? e.message : 'No se pudo crear',
+          life: 3500
+        });
+      }
+    });
+  }
+
+  private cargarCategorias(): void {
+    this.categoriasService.getAll().subscribe({
+      next: (categorias) => this.categories.set(categorias),
+      error: (e: unknown) => {
+        this.categories.set([]);
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Categorias',
+          detail: e instanceof Error ? e.message : 'No se pudieron cargar categorias',
           life: 3500
         });
       }

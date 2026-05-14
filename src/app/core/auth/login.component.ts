@@ -103,7 +103,7 @@ import { AuthService } from './auth.service';
               </svg>
             }
 
-            <div class="title">Welcome to Toli!</div>
+            <div class="title">Bienvenidos al Control Toli!</div>
             <div class="subtitle">Sign in to continue</div>
           </div>
 

@@ -24,7 +24,11 @@ export class ProductosService {
   }
 
   private buildProductoPayload(payload: Partial<Producto>): Record<string, unknown> {
-    const categoriaTexto = payload.categoria?.trim() || payload.categoria_nombre?.trim() || undefined;
+    const categoriaTexto =
+      payload.categoria?.trim() ||
+      payload.categoria_nombre?.trim() ||
+      (typeof payload.categoria_id === 'string' ? payload.categoria_id.trim() : undefined) ||
+      undefined;
     const precioNumero = typeof payload.precio === 'number' ? payload.precio : Number(payload.precio);
 
     const body: Record<string, unknown> = {
@@ -50,6 +54,16 @@ export class ProductosService {
     });
 
     return body;
+  }
+
+  private validateCreatePayload(body: Record<string, unknown>): void {
+    const nombre = typeof body['nombre'] === 'string' ? body['nombre'].trim() : '';
+    const categoria = typeof body['categoria'] === 'string' ? body['categoria'].trim() : '';
+    const precio = typeof body['precio'] === 'number' ? body['precio'] : Number(body['precio']);
+
+    if (!nombre || !categoria || !Number.isFinite(precio) || precio <= 0) {
+      throw new Error('Nombre, precio y categoria son requeridos');
+    }
   }
 
   private withAlternativeCrudPayload<T>(
@@ -92,17 +106,26 @@ export class ProductosService {
 
   private mapProducto(raw: any): Producto {
     const precio = typeof raw?.precio === 'number' ? raw.precio : Number(raw?.precio);
+    const categoriaObj = raw?.categoria && typeof raw.categoria === 'object' ? raw.categoria : null;
+    const categoriaNombre =
+      raw?.categoria_nombre ??
+      (typeof raw?.categoria === 'string' ? raw.categoria : undefined) ??
+      categoriaObj?.nombre ??
+      undefined;
+    const categoriaId = raw?.categoria_id ?? categoriaObj?.id ?? undefined;
+    const stockNumero = typeof raw?.stock === 'number' ? raw.stock : Number(raw?.stock);
+
     return {
       id: String(raw?.id ?? ''),
       nombre: String(raw?.nombre ?? ''),
       descripcion: raw?.descripcion ?? undefined,
       precio: Number.isFinite(precio) ? precio : 0,
-      categoria: raw?.categoria ?? undefined,
-      stock: raw?.stock ?? undefined,
+      categoria: categoriaNombre,
+      stock: Number.isFinite(stockNumero) ? stockNumero : 0,
       imagen: this.normalizeUrl(raw?.imagen),
       sku: raw?.sku ?? undefined,
-      categoria_id: raw?.categoria_id ?? undefined,
-      categoria_nombre: raw?.categoria_nombre ?? raw?.categoria ?? undefined,
+      categoria_id: categoriaId,
+      categoria_nombre: categoriaNombre,
       activo: raw?.activo ?? undefined,
       precio_mayor: raw?.precio_mayor ?? undefined,
       cantidad_minimaMayor: raw?.cantidad_minimaMayor ?? undefined
@@ -153,6 +176,7 @@ export class ProductosService {
    */
   create(payload: Partial<Producto>): Observable<Producto | null> {
     const body = this.buildProductoPayload(payload);
+    this.validateCreatePayload(body);
     return this.withAlternativeCrudPayload((requestBody) => this.api.post<any>('productos', requestBody), body).pipe(
       map((response: any) => {
         const raw = this.extractOne(response);
